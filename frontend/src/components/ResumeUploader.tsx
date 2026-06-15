@@ -88,14 +88,14 @@ export const ResumeUploader: React.FC<ResumeUploaderProps> = ({
   const isUploading = uploadState.status === "uploading";
 
   return (
-    <div className="w-full max-w-xl mx-auto">
+    <div className="w-full max-w-lg mx-auto">
       {/* Error state alert */}
       {(error || uploadState.error) && (
-        <div className="mb-4 flex items-start gap-3 p-4 rounded-xl border border-red-500/20 bg-red-500/10 text-red-400 text-sm backdrop-blur-md animate-fade-in">
-          <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-          <div>
-            <p className="font-semibold text-red-300">Upload failed</p>
-            <p className="opacity-90">{error || uploadState.error}</p>
+        <div className="mb-4 flex items-start gap-3 p-3.5 rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400 text-xs shadow-sm">
+          <AlertCircle className="w-4.5 h-4.5 shrink-0 mt-0.5" />
+          <div className="space-y-0.5">
+            <p className="font-semibold text-red-800 dark:text-red-200">Validation Error</p>
+            <p className="opacity-90 font-light">{error || uploadState.error}</p>
           </div>
         </div>
       )}
@@ -108,27 +108,24 @@ export const ResumeUploader: React.FC<ResumeUploaderProps> = ({
           onDragLeave={handleDrag}
           onDrop={handleDrop}
           onClick={handleButtonClick}
-          className={`relative overflow-hidden group cursor-pointer border-2 border-dashed rounded-3xl p-10 transition-all duration-300 text-center flex flex-col items-center justify-center gap-4 backdrop-blur-md
+          className={`relative overflow-hidden group cursor-pointer border border-dashed rounded-xl p-10 transition-colors duration-200 text-center flex flex-col items-center justify-center gap-4 bg-slate-100/40 hover:bg-slate-100/80 dark:bg-slate-900/10 dark:hover:bg-slate-900/20
             ${
               isDragActive
-                ? "border-violet-500 bg-violet-600/10 shadow-[0_0_25px_rgba(139,92,246,0.15)] scale-[0.99]"
-                : "border-slate-700/60 bg-slate-900/40 hover:border-slate-500/80 hover:bg-slate-800/20 hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)]"
+                ? "border-indigo-500 bg-slate-100 dark:bg-slate-900/40"
+                : "border-slate-300 hover:border-slate-400 dark:border-slate-800 dark:hover:border-slate-700"
             }
           `}
         >
-          {/* Visual glow element behind icon */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-violet-500/5 rounded-full blur-3xl pointer-events-none group-hover:bg-violet-500/10 transition-all duration-300"></div>
-
-          <div className="w-16 h-16 rounded-2xl bg-slate-800/80 flex items-center justify-center border border-slate-700/50 shadow-inner group-hover:scale-110 group-hover:border-violet-500/30 group-hover:bg-violet-600/5 transition-all duration-300">
-            <Upload className="w-7 h-7 text-slate-400 group-hover:text-violet-400 transition-colors" />
+          <div className="w-12 h-12 rounded-lg bg-white dark:bg-slate-950/80 flex items-center justify-center border border-slate-200 dark:border-slate-800 shadow-sm transition-colors group-hover:border-slate-300 dark:group-hover:border-slate-700">
+            <Upload className="w-5 h-5 text-slate-500 dark:text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" />
           </div>
 
           <div className="space-y-1 z-10">
-            <h3 className="text-lg font-semibold text-slate-200 group-hover:text-white transition-colors">
-              Upload your resume
+            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
+              Select or drop your resume
             </h3>
-            <p className="text-sm text-slate-400 max-w-xs mx-auto">
-              Drag and drop your PDF file here, or click to browse files
+            <p className="text-xs text-slate-400 dark:text-slate-500 max-w-xs mx-auto font-normal">
+              Only PDF formats are supported
             </p>
           </div>
 
@@ -142,24 +139,24 @@ export const ResumeUploader: React.FC<ResumeUploaderProps> = ({
 
           <button
             type="button"
-            className="mt-2 px-5 py-2.5 rounded-xl text-xs font-semibold tracking-wide border border-slate-700 bg-slate-800/50 text-slate-300 hover:text-white hover:border-slate-500/50 hover:bg-slate-700/40 transition-all"
+            className="mt-1 px-4 py-2 rounded-lg text-xs font-semibold border border-slate-300 bg-white text-slate-700 hover:text-slate-955 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300 dark:hover:text-white dark:hover:border-slate-700 dark:hover:bg-slate-800/50 transition-colors shadow-sm"
           >
-            Select PDF File
+            Browse Files
           </button>
         </div>
       ) : (
         /* File Card when file selected */
-        <div className="border border-slate-700/60 bg-slate-900/60 rounded-3xl p-6 shadow-xl backdrop-blur-md border-t-slate-600/40 space-y-6 animate-scale-up">
-          <div className="flex items-center justify-between gap-4 p-3 bg-slate-800/40 border border-slate-800 rounded-2xl">
+        <div className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/10 rounded-xl p-5 shadow-sm space-y-5 animate-scale-up transition-colors duration-200">
+          <div className="flex items-center justify-between gap-4 p-3.5 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-lg transition-colors">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-12 h-12 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400 shrink-0 shadow-inner">
-                <FileText className="w-6 h-6" />
+              <div className="w-10 h-10 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 shrink-0">
+                <FileText className="w-5 h-5 text-slate-500 dark:text-slate-400" />
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-slate-200 truncate pr-2" title={selectedFile.name}>
+                <p className="text-xs font-semibold text-slate-900 dark:text-white truncate pr-2" title={selectedFile.name}>
                   {selectedFile.name}
                 </p>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 font-normal">
                   {formatBytes(selectedFile.size)}
                 </p>
               </div>
@@ -169,24 +166,24 @@ export const ResumeUploader: React.FC<ResumeUploaderProps> = ({
               <button
                 type="button"
                 onClick={handleRemoveFile}
-                className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center border border-slate-700/40 transition-colors"
+                className="w-8 h-8 rounded-lg bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 flex items-center justify-center border border-slate-200 dark:border-slate-800 transition-colors"
                 title="Remove file"
               >
-                <X className="w-4 h-4" />
+                <X className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
 
           {/* Upload progress bar */}
           {isUploading && (
-            <div className="space-y-2.5">
-              <div className="flex justify-between text-xs font-medium">
-                <span className="text-violet-400">Uploading file...</span>
-                <span className="text-slate-300">{uploadState.progress}%</span>
+            <div className="space-y-2 px-0.5">
+              <div className="flex justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                <span>Uploading...</span>
+                <span>{uploadState.progress}%</span>
               </div>
-              <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden border border-slate-700/30">
+              <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-950 rounded-full overflow-hidden border border-slate-200/40 dark:border-slate-900">
                 <div
-                  className="h-full bg-gradient-to-r from-violet-600 to-indigo-500 transition-all duration-300 rounded-full"
+                  className="h-full bg-gradient-to-r from-indigo-700 to-indigo-500 dark:from-indigo-600 dark:to-blue-500 transition-all duration-300 rounded-full"
                   style={{ width: `${uploadState.progress}%` }}
                 ></div>
               </div>
@@ -199,14 +196,14 @@ export const ResumeUploader: React.FC<ResumeUploaderProps> = ({
               <button
                 type="button"
                 onClick={handleRemoveFile}
-                className="flex-1 px-5 py-3 rounded-2xl text-sm font-semibold text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-700/80 hover:border-slate-600/60 transition-all"
+                className="flex-1 px-4 py-2.5 rounded-lg text-xs font-semibold bg-white hover:bg-slate-100 text-slate-700 dark:bg-slate-900 hover:dark:bg-slate-800 dark:text-slate-400 border border-slate-300 dark:border-slate-800 transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleUploadClick}
-                className="flex-1 px-5 py-3 rounded-2xl text-sm font-semibold bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white border border-violet-500/20 hover:border-violet-400/20 shadow-[0_8px_20px_-6px_rgba(139,92,246,0.35)] transition-all transform hover:-translate-y-0.5 active:translate-y-0"
+                className="flex-1 px-4 py-2.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white border border-indigo-600 shadow-sm transition-colors"
               >
                 Upload & Analyze
               </button>
@@ -216,10 +213,10 @@ export const ResumeUploader: React.FC<ResumeUploaderProps> = ({
           {isUploading && (
             <button
               disabled
-              className="w-full px-5 py-3 rounded-2xl text-sm font-semibold bg-slate-800 border border-slate-700 text-slate-500 flex items-center justify-center gap-2"
+              className="w-full px-4 py-2.5 rounded-lg text-xs font-semibold bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500 flex items-center justify-center gap-2"
             >
-              <div className="w-4 h-4 border-2 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
-              Processing on Server...
+              <div className="w-3.5 h-3.5 border border-slate-400 dark:border-zinc-500 border-t-transparent rounded-full animate-spin"></div>
+              Processing...
             </button>
           )}
         </div>

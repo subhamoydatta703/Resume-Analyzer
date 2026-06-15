@@ -1,18 +1,16 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Sparkles, Database, Terminal, Settings, AlertCircle, RefreshCw } from "lucide-react";
+import { Sparkles, AlertCircle, RefreshCw, Activity, Sun, Moon } from "lucide-react";
 import { ResumeUploader } from "../components/ResumeUploader";
 import { PendingScanner } from "../components/PendingScanner";
 import { AnalysisDashboard } from "../components/AnalysisDashboard";
-import { 
-  uploadResume, 
-  uploadResumeMock, 
-  analyzeResume, 
-  getResumeDetailsMock 
-} from "../services/api";
-import type { UploadState, ResumeDetailsResponse } from "../types";
+import { uploadResume, analyzeResume } from "../services/api";
+import type { UploadState } from "../types";
 
 export const UploadPage: React.FC = () => {
-  const [useMock, setUseMock] = useState<boolean>(true);
+  const [theme, setTheme] = useState<"light" | "dark">(
+    (localStorage.getItem("theme") as "light" | "dark") || "dark"
+  );
+  
   const [uploadState, setUploadState] = useState<UploadState>({
     status: "idle",
     progress: 0,
@@ -24,6 +22,16 @@ export const UploadPage: React.FC = () => {
   });
 
   const pollingTimerRef = useRef<number | null>(null);
+
+  // Sync theme to <html> element
+  useEffect(() => {
+    if (theme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+    localStorage.setItem("theme", theme);
+  }, [theme]);
 
   // Clean up timers on unmount
   useEffect(() => {
@@ -46,16 +54,9 @@ export const UploadPage: React.FC = () => {
     });
 
     try {
-      let response;
-      if (useMock) {
-        response = await uploadResumeMock(file, (progress) => {
-          setUploadState((prev) => ({ ...prev, progress }));
-        });
-      } else {
-        response = await uploadResume(file, (progress) => {
-          setUploadState((prev) => ({ ...prev, progress }));
-        });
-      }
+      const response = await uploadResume(file, (progress) => {
+        setUploadState((prev) => ({ ...prev, progress }));
+      });
 
       console.log("Upload response:", response);
 
@@ -68,7 +69,7 @@ export const UploadPage: React.FC = () => {
         error: null,
       }));
 
-      // Start polling status or run analysis
+      // Start live analysis synchronously
       startPolling(resumeId);
     } catch (err: any) {
       console.error("Upload error:", err);
@@ -85,90 +86,34 @@ export const UploadPage: React.FC = () => {
     }
   };
 
-  const startPolling = (resumeId: string) => {
-    if (pollingTimerRef.current) {
-      window.clearInterval(pollingTimerRef.current);
-    }
+  const startPolling = async (resumeId: string) => {
+    try {
+      const response = await analyzeResume(resumeId);
+      console.log("Live analysis response:", response);
 
-    const pollStatus = async () => {
-      try {
-        let response: ResumeDetailsResponse;
-        if (useMock) {
-          response = await getResumeDetailsMock(resumeId);
-          console.log("Mock Poll response:", response);
+      setUploadState((prev) => ({
+        ...prev,
+        status: "completed",
+        analysisResult: response.analysisResult || null,
+        error: null,
+      }));
+    } catch (err: any) {
+      console.error("Analysis error:", err);
 
-          if (response.status === "COMPLETED") {
-            if (pollingTimerRef.current) {
-              window.clearInterval(pollingTimerRef.current);
-              pollingTimerRef.current = null;
-            }
-            
-            setUploadState((prev) => ({
-              ...prev,
-              status: "completed",
-              analysisResult: response.analysisResult || null,
-              error: null,
-            }));
-          } else if (response.status === "FAILED") {
-            if (pollingTimerRef.current) {
-              window.clearInterval(pollingTimerRef.current);
-              pollingTimerRef.current = null;
-            }
-            
-            setUploadState((prev) => ({
-              ...prev,
-              status: "failed",
-              error: "Resume parsing and analysis pipeline failed on the server.",
-            }));
-          }
-        } else {
-          // Live API Mode: Call analyzeResume synchronously once
-          response = await analyzeResume(resumeId);
-          console.log("Live analysis response:", response);
+      const errorMessage =
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to fetch analysis details from server.";
 
-          setUploadState((prev) => ({
-            ...prev,
-            status: "completed",
-            analysisResult: response.analysisResult || null,
-            error: null,
-          }));
-        }
-      } catch (err: any) {
-        console.error("Analysis error:", err);
-        if (pollingTimerRef.current) {
-          window.clearInterval(pollingTimerRef.current);
-          pollingTimerRef.current = null;
-        }
-
-        const errorMessage =
-          err.response?.data?.message ||
-          err.message ||
-          "Failed to fetch analysis details from server.";
-
-        setUploadState((prev) => ({
-          ...prev,
-          status: "failed",
-          error: errorMessage,
-        }));
-      }
-    };
-
-    if (useMock) {
-      // Run first mock poll immediately, then every 2 seconds
-      pollStatus();
-      pollingTimerRef.current = window.setInterval(pollStatus, 2000);
-    } else {
-      // Run single synchronous live call immediately
-      pollStatus();
+      setUploadState((prev) => ({
+        ...prev,
+        status: "failed",
+        error: errorMessage,
+      }));
     }
   };
 
   const handleReset = () => {
-    if (pollingTimerRef.current) {
-      window.clearInterval(pollingTimerRef.current);
-      pollingTimerRef.current = null;
-    }
-    
     setUploadState({
       status: "idle",
       progress: 0,
@@ -180,72 +125,59 @@ export const UploadPage: React.FC = () => {
     });
   };
 
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+  };
+
   return (
-    <div className="relative min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-between p-6 overflow-hidden font-sans">
-      {/* Background visual graphics */}
-      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-violet-600/10 blur-[120px] pointer-events-none"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-indigo-600/10 blur-[120px] pointer-events-none"></div>
+    <div className="relative min-h-screen bg-slate-50 text-slate-800 dark:bg-[#0b0f19] dark:text-slate-200 flex flex-col items-center justify-between p-6 md:p-10 font-sans selection:bg-slate-200 dark:selection:bg-slate-800 selection:text-slate-900 dark:selection:text-white transition-colors duration-200">
       
       {/* Top utility bar */}
-      <header className="w-full max-w-6xl flex items-center justify-between py-4 z-10 border-b border-slate-800/40">
-        <div className="flex items-center gap-2">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-violet-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/15">
-            <Sparkles className="w-5 h-5 text-white" />
+      <header className="w-full max-w-5xl flex items-center justify-between py-4 z-10 border-b border-slate-200 dark:border-slate-900/60 transition-colors duration-200">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shadow-md border border-indigo-500/20">
+            <Sparkles className="w-4.5 h-4.5 text-white animate-pulse" />
           </div>
-          <span className="font-bold tracking-tight text-lg bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">
-            ResumeAI
+          <span className="font-semibold tracking-tight text-md text-slate-900 dark:text-white transition-colors">
+            Resume Analyzer
           </span>
         </div>
         
-        {/* Mock/Live status controller */}
-        <div className="flex items-center gap-3 bg-slate-900/80 border border-slate-800 rounded-2xl px-4 py-2 text-xs">
-          <div className="flex items-center gap-1.5 text-slate-400">
-            <Settings className="w-3.5 h-3.5" />
-            <span>Connection Mode:</span>
+        {/* Right utility items: status badge & theme toggle */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80 rounded-xl px-3.5 py-1.5 text-xs text-slate-700 dark:text-slate-300 font-medium select-none shadow-sm transition-colors duration-200">
+            <Activity className="w-3.5 h-3.5 text-emerald-500 animate-pulse" />
+            <span>Live API Active</span>
           </div>
+
           <button
+            onClick={toggleTheme}
             type="button"
-            onClick={() => {
-              setUseMock(!useMock);
-              handleReset();
-            }}
-            className={`flex items-center gap-1.5 font-semibold transition-all px-2.5 py-1 rounded-lg ${
-              useMock
-                ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-            }`}
+            className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900/60 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800/80 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center justify-center transition-all duration-200 shadow-sm"
+            aria-label="Toggle Theme"
           >
-            {useMock ? (
-              <>
-                <Terminal className="w-3 h-3" />
-                Mock API
-              </>
+            {theme === "dark" ? (
+              <Sun className="w-4 h-4" />
             ) : (
-              <>
-                <Database className="w-3 h-3" />
-                Live API (Port 5000)
-              </>
+              <Moon className="w-4 h-4" />
             )}
           </button>
         </div>
       </header>
 
       {/* Main content container */}
-      <main className="w-full max-w-5xl flex-1 flex flex-col items-center justify-center my-12 z-10">
+      <main className="w-full max-w-5xl flex-1 flex flex-col items-center justify-center my-10 md:my-16 z-10 px-2">
         
         {/* State routing */}
         {uploadState.status === "idle" || uploadState.status === "uploading" ? (
           <>
             {/* Hero Section */}
-            <div className="text-center max-w-2xl mb-10 space-y-4 animate-fade-in">
-              <div className="inline-flex items-center gap-1.5 bg-violet-500/10 border border-violet-500/20 px-3.5 py-1.5 rounded-full text-xs font-semibold text-violet-400">
-                <Sparkles className="w-3.5 h-3.5" /> Powered by Advanced Parser Models
-              </div>
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight text-white">
-                AI Resume <span className="bg-gradient-to-r from-violet-400 via-indigo-400 to-cyan-400 bg-clip-text text-transparent">Analyzer</span>
+            <div className="text-center max-w-2xl mb-12 space-y-4 animate-fade-in">
+              <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight transition-colors">
+                Analyze your resume
               </h1>
-              <p className="text-base md:text-lg text-slate-400 max-w-xl mx-auto leading-relaxed">
-                Upload your curriculum vitae in PDF format. Our parser extracts structures, classifies skills, and matches metrics to evaluate your career potential.
+              <p className="text-sm md:text-md text-slate-500 dark:text-slate-400 max-w-lg mx-auto leading-relaxed font-normal transition-colors">
+                Upload your PDF resume. Our models will extract layout structures, compile candidate info, and list technical skills.
               </p>
             </div>
 
@@ -269,14 +201,14 @@ export const UploadPage: React.FC = () => {
           />
         ) : (
           /* Failed / Error Screen */
-          <div className="w-full max-w-lg border border-red-500/20 bg-slate-900/60 rounded-3xl p-8 text-center space-y-6 shadow-2xl backdrop-blur-md animate-scale-up">
-            <div className="w-16 h-16 bg-red-500/10 border border-red-500/20 rounded-full flex items-center justify-center mx-auto text-red-400 shadow-inner">
-              <AlertCircle className="w-8 h-8" />
+          <div className="w-full max-w-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/30 rounded-2xl p-8 text-center space-y-6 shadow-sm animate-scale-up transition-colors duration-200">
+            <div className="w-12 h-12 bg-red-100 dark:bg-red-950/20 border border-red-200 dark:border-red-900/20 rounded-full flex items-center justify-center mx-auto text-red-500 dark:text-red-400">
+              <AlertCircle className="w-6 h-6" />
             </div>
 
-            <div className="space-y-2">
-              <h2 className="text-2xl font-bold text-white">Analysis Failed</h2>
-              <p className="text-sm text-slate-400 leading-relaxed">
+            <div className="space-y-1.5">
+              <h2 className="text-xl font-semibold text-slate-900 dark:text-white tracking-tight transition-colors">Analysis Failed</h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-light transition-colors">
                 {uploadState.error || "An error occurred while analyzing the resume."}
               </p>
             </div>
@@ -285,9 +217,9 @@ export const UploadPage: React.FC = () => {
             <button
               type="button"
               onClick={handleReset}
-              className="w-full py-3.5 px-5 rounded-2xl text-sm font-semibold bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 flex items-center justify-center gap-2 group transition-all"
+              className="w-full py-3 px-4 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-800 dark:text-white border border-slate-200 dark:border-slate-800 flex items-center justify-center gap-2 group transition-colors shadow-sm"
             >
-              <RefreshCw className="w-4 h-4 text-slate-400 group-hover:rotate-180 transition-transform duration-500" />
+              <RefreshCw className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 group-hover:rotate-180 transition-transform duration-500" />
               Try Again
             </button>
           </div>
@@ -295,8 +227,8 @@ export const UploadPage: React.FC = () => {
       </main>
 
       {/* Footer copyright */}
-      <footer className="w-full text-center py-6 border-t border-slate-900/40 text-xs text-slate-500 z-10">
-        &copy; {new Date().getFullYear()} ResumeAI. Designed for rapid recruitment optimization.
+      <footer className="w-full text-center py-6 border-t border-slate-200 dark:border-slate-900/60 text-xs text-slate-400 dark:text-slate-650 font-normal z-10 transition-colors duration-200">
+        &copy; {new Date().getFullYear()} Resume Analyzer. All rights reserved.
       </footer>
     </div>
   );
