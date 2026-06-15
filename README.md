@@ -10,6 +10,9 @@ An application to upload, parse, and analyze resumes. The project is split into 
 resume_analyzer/
 ├── backend/          # Express API server powered by Bun & TypeScript
 │   ├── prisma/       # Prisma ORM schema and database migrations
+│   ├── public/       # Static public files
+│   │   └── data/
+│   │       └── uploads/ # Uploaded resumes (Git-ignored)
 │   ├── src/          # Application source code
 │   │   ├── config/       # Configurations (DB, database adapters, etc.)
 │   │   ├── controllers/  # Request handlers (resume upload handlers)

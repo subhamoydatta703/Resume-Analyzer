@@ -90,3 +90,7 @@ Thumbs.db
 # Prisma
 /backend/prisma/generated/
 /backend/src/generated/prisma/
+
+# Uploaded resumes
+/backend/public/data/uploads/*
+!/backend/public/data/uploads/.gitkeep
