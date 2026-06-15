@@ -12,12 +12,24 @@
   to { opacity: 1; transform: scale(1); }
 }
 
+@keyframes scanBeam {
+  0% { top: 0%; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
 .animate-fade-in {
   animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .animate-scale-up {
   animation: scaleUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-scan-beam {
+  position: absolute;
+  animation: scanBeam 3s ease-in-out infinite;
 }
 
 /* Custom reset override for Vite base template layout */

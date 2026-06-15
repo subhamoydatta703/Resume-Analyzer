@@ -1,19 +1,55 @@
 export interface ResumeUploadResponse {
-  success: boolean;
-  message: string;
-  resumeId?: string;
-  fileData?: {
-    resume?: {
-      id: string;
-      fileName: string;
-      status: string;
-      createdAt: string;
-      updatedAt: string;
-    };
-  };
+  resumeId: string;
+  status: "PENDING" | "COMPLETED" | "FAILED";
 }
 
-export type UploadStatus = 'idle' | 'uploading' | 'success' | 'error';
+export interface CandidateInfo {
+  name: string;
+  email: string;
+  phone: string;
+  location: string;
+  linkedin?: string;
+}
+
+export interface SkillCategory {
+  category: string;
+  items: string[];
+}
+
+export interface WorkExperience {
+  role: string;
+  company: string;
+  duration: string;
+  description: string[];
+}
+
+export interface EducationInfo {
+  degree: string;
+  school: string;
+  year: string;
+}
+
+export interface AnalysisResult {
+  overallScore: number;
+  atsCompatibility: number;
+  formattingScore: number;
+  candidateInfo: CandidateInfo;
+  summary: string;
+  skills: SkillCategory[];
+  experience: WorkExperience[];
+  education: EducationInfo[];
+  strengths: string[];
+  improvements: string[];
+  suggestedRoles: string[];
+}
+
+export interface ResumeDetailsResponse {
+  id: string;
+  status: "PENDING" | "COMPLETED" | "FAILED";
+  analysisResult?: AnalysisResult;
+}
+
+export type UploadStatus = "idle" | "uploading" | "pending" | "completed" | "failed";
 
 export interface UploadState {
   status: UploadStatus;
@@ -22,4 +58,5 @@ export interface UploadState {
   error: string | null;
   fileName: string | null;
   fileSize: number | null;
+  analysisResult?: AnalysisResult | null;
 }

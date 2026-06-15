@@ -1,7 +1,14 @@
-import React, { useState } from "react";
-import { Sparkles, CheckCircle2, RefreshCw, Database, Terminal, Settings } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { Sparkles, Database, Terminal, Settings, AlertCircle, RefreshCw } from "lucide-react";
 import { ResumeUploader } from "../components/ResumeUploader";
-import { uploadResume, uploadResumeMock } from "../services/api";
+import { PendingScanner } from "../components/PendingScanner";
+import { AnalysisDashboard } from "../components/AnalysisDashboard";
+import { 
+  uploadResume, 
+  uploadResumeMock, 
+  getResumeDetails, 
+  getResumeDetailsMock 
+} from "../services/api";
 import type { UploadState } from "../types";
 
 export const UploadPage: React.FC = () => {
@@ -13,7 +20,19 @@ export const UploadPage: React.FC = () => {
     error: null,
     fileName: null,
     fileSize: null,
+    analysisResult: null,
   });
+
+  const pollingTimerRef = useRef<number | null>(null);
+
+  // Clean up timers on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingTimerRef.current) {
+        window.clearInterval(pollingTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleUpload = async (file: File) => {
     setUploadState({
@@ -23,6 +42,7 @@ export const UploadPage: React.FC = () => {
       error: null,
       fileName: file.name,
       fileSize: file.size,
+      analysisResult: null,
     });
 
     try {
@@ -37,19 +57,19 @@ export const UploadPage: React.FC = () => {
         });
       }
 
-      console.log("Upload response payload:", response);
+      console.log("Upload response:", response);
+
+      const resumeId = response.resumeId;
 
       setUploadState((prev) => ({
         ...prev,
-        status: "success",
-        resumeId:
-          response.resumeId ||
-          response.fileData?.resume?.id ||
-          (response as any).fileData?.id ||
-          (response as any).id ||
-          "N/A",
+        status: "pending",
+        resumeId,
         error: null,
       }));
+
+      // Start polling status
+      startPolling(resumeId);
     } catch (err: any) {
       console.error("Upload error:", err);
       const errorMessage =
@@ -59,13 +79,84 @@ export const UploadPage: React.FC = () => {
       
       setUploadState((prev) => ({
         ...prev,
-        status: "error",
+        status: "failed",
         error: errorMessage,
       }));
     }
   };
 
+  const startPolling = (resumeId: string) => {
+    if (pollingTimerRef.current) {
+      window.clearInterval(pollingTimerRef.current);
+    }
+
+    const pollStatus = async () => {
+      try {
+        let response;
+        if (useMock) {
+          response = await getResumeDetailsMock(resumeId);
+        } else {
+          response = await getResumeDetails(resumeId);
+        }
+
+        console.log("Poll response:", response);
+
+        if (response.status === "COMPLETED") {
+          if (pollingTimerRef.current) {
+            window.clearInterval(pollingTimerRef.current);
+            pollingTimerRef.current = null;
+          }
+          
+          setUploadState((prev) => ({
+            ...prev,
+            status: "completed",
+            analysisResult: response.analysisResult || null,
+            error: null,
+          }));
+        } else if (response.status === "FAILED") {
+          if (pollingTimerRef.current) {
+            window.clearInterval(pollingTimerRef.current);
+            pollingTimerRef.current = null;
+          }
+          
+          setUploadState((prev) => ({
+            ...prev,
+            status: "failed",
+            error: "Resume parsing and analysis pipeline failed on the server.",
+          }));
+        }
+        // If PENDING, do nothing and let the next poll cycle run
+      } catch (err: any) {
+        console.error("Polling error:", err);
+        if (pollingTimerRef.current) {
+          window.clearInterval(pollingTimerRef.current);
+          pollingTimerRef.current = null;
+        }
+
+        const errorMessage =
+          err.response?.data?.message ||
+          err.message ||
+          "Failed to fetch analysis details from server.";
+
+        setUploadState((prev) => ({
+          ...prev,
+          status: "failed",
+          error: errorMessage,
+        }));
+      }
+    };
+
+    // Run first poll immediately, then every 2 seconds
+    pollStatus();
+    pollingTimerRef.current = window.setInterval(pollStatus, 2000);
+  };
+
   const handleReset = () => {
+    if (pollingTimerRef.current) {
+      window.clearInterval(pollingTimerRef.current);
+      pollingTimerRef.current = null;
+    }
+    
     setUploadState({
       status: "idle",
       progress: 0,
@@ -73,6 +164,7 @@ export const UploadPage: React.FC = () => {
       error: null,
       fileName: null,
       fileSize: null,
+      analysisResult: null,
     });
   };
 
@@ -101,7 +193,10 @@ export const UploadPage: React.FC = () => {
           </div>
           <button
             type="button"
-            onClick={() => setUseMock(!useMock)}
+            onClick={() => {
+              setUseMock(!useMock);
+              handleReset();
+            }}
             className={`flex items-center gap-1.5 font-semibold transition-all px-2.5 py-1 rounded-lg ${
               useMock
                 ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
@@ -124,9 +219,10 @@ export const UploadPage: React.FC = () => {
       </header>
 
       {/* Main content container */}
-      <main className="w-full max-w-4xl flex-1 flex flex-col items-center justify-center my-12 z-10">
+      <main className="w-full max-w-5xl flex-1 flex flex-col items-center justify-center my-12 z-10">
         
-        {uploadState.status !== "success" ? (
+        {/* State routing */}
+        {uploadState.status === "idle" || uploadState.status === "uploading" ? (
           <>
             {/* Hero Section */}
             <div className="text-center max-w-2xl mb-10 space-y-4 animate-fade-in">
@@ -148,35 +244,29 @@ export const UploadPage: React.FC = () => {
               onCancel={handleReset}
             />
           </>
+        ) : uploadState.status === "pending" ? (
+          <PendingScanner 
+            resumeId={uploadState.resumeId || ""} 
+            fileName={uploadState.fileName} 
+          />
+        ) : uploadState.status === "completed" && uploadState.analysisResult ? (
+          <AnalysisDashboard 
+            analysisResult={uploadState.analysisResult} 
+            onReset={handleReset} 
+            fileName={uploadState.fileName}
+          />
         ) : (
-          /* Success Screen */
-          <div className="w-full max-w-lg border border-slate-800 bg-slate-900/80 rounded-3xl p-8 text-center space-y-6 shadow-2xl backdrop-blur-md border-t-slate-700/30 animate-scale-up">
-            <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/20 rounded-full flex items-center justify-center mx-auto text-emerald-400 shadow-inner">
-              <CheckCircle2 className="w-8 h-8" />
+          /* Failed / Error Screen */
+          <div className="w-full max-w-lg border border-red-500/20 bg-slate-900/60 rounded-3xl p-8 text-center space-y-6 shadow-2xl backdrop-blur-md animate-scale-up">
+            <div className="w-16 h-16 bg-red-500/10 border border-red-500/20 rounded-full flex items-center justify-center mx-auto text-red-400 shadow-inner">
+              <AlertCircle className="w-8 h-8" />
             </div>
 
             <div className="space-y-2">
-              <h2 className="text-2xl font-bold text-white">Analysis Started!</h2>
-              <p className="text-sm text-slate-400">
-                Your resume <span className="text-slate-200 font-semibold">{uploadState.fileName}</span> was uploaded and parsing has initiated successfully.
+              <h2 className="text-2xl font-bold text-white">Analysis Failed</h2>
+              <p className="text-sm text-slate-400 leading-relaxed">
+                {uploadState.error || "An error occurred while analyzing the resume."}
               </p>
-            </div>
-
-            {/* Resume ID card */}
-            <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 text-left font-mono text-xs space-y-2">
-              <div className="flex justify-between text-slate-500">
-                <span>METRIC</span>
-                <span>VALUE</span>
-              </div>
-              <hr className="border-slate-800" />
-              <div className="flex justify-between">
-                <span className="text-slate-400">Resume ID:</span>
-                <span className="text-violet-400 font-bold">{uploadState.resumeId}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Status:</span>
-                <span className="text-emerald-400 font-bold">ANALYSIS_PENDING</span>
-              </div>
             </div>
 
             {/* Action buttons */}
@@ -186,14 +276,14 @@ export const UploadPage: React.FC = () => {
               className="w-full py-3.5 px-5 rounded-2xl text-sm font-semibold bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 flex items-center justify-center gap-2 group transition-all"
             >
               <RefreshCw className="w-4 h-4 text-slate-400 group-hover:rotate-180 transition-transform duration-500" />
-              Analyze Another Resume
+              Try Again
             </button>
           </div>
         )}
       </main>
 
       {/* Footer copyright */}
-      <footer className="w-full text-center py-6 border-t border-slate-900 text-xs text-slate-500 z-10">
+      <footer className="w-full text-center py-6 border-t border-slate-900/40 text-xs text-slate-500 z-10">
         &copy; {new Date().getFullYear()} ResumeAI. Designed for rapid recruitment optimization.
       </footer>
     </div>

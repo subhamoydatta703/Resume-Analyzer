@@ -10,6 +10,7 @@ export const createFileDB = async (existingfileName: string, existingfilePath: s
     });
     // const filepathPdf = await getFilePathFromDB(resume.id);
     const extractedData = await extractPDFText(resume.filePath);
+    //  function call for analyze pdf
     console.log("Extracted data from pdf", extractedData);
     
     return {resume: resume};
@@ -21,6 +22,8 @@ export const createFileDB = async (existingfileName: string, existingfilePath: s
         }
   }
 };
+
+
 
 // export const getFilePathFromDB = async ( fileID: string ) => {
 //     try {
