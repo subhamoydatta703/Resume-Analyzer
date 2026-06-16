@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { createFileDB } from "../services/uploadResumeServive";
+import { createFileDB } from "../services/uploadResumeService";
 export const uploadResume = async (req: Request, res: Response) => {
   try {
     if (!req.file) {

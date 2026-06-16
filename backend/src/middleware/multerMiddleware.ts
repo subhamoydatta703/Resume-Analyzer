@@ -18,5 +18,16 @@ const storage = multer.diskStorage({
     );
   },
 });
-const upload = multer({storage});
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB Limit
+  fileFilter: (req, file, cb) => {
+    const isPdf = file.mimetype === "application/pdf" && path.extname(file.originalname).toLowerCase() === ".pdf";
+    if (isPdf) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only PDF documents (.pdf) are supported."));
+    }
+  },
+});
 export default upload;

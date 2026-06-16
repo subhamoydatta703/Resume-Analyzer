@@ -3,34 +3,21 @@ import { prisma } from "../config/db";
 import { extractPDFText } from "../utils/pdfParser";
 
 export const createFileDB = async (existingfileName: string, existingfilePath: string, originalName: string) => {
-  try {
-    // issue with prisma db create , 
-    const existingResume = await prisma.resume.findFirst({
-      where: { originalName: originalName },
-    
-    })
-    console.log("The resume already exist in database: ", existingResume);
-    
-    if(existingResume){
-      return existingResume
-    }
-    
-    const resume = await prisma.resume.create({ 
-      data: { fileName: existingfileName, filePath: existingfilePath, originalName: originalName },
-    });
-    // const filepathPdf = await getFilePathFromDB(resume.id);
-    // const extractedData = await extractPDFText(resume.filePath);
-    //  function call for analyze pdf
-    // console.log("Extracted data from pdf", extractedData);
-    
-    return {resume: resume};
-  } catch (error) {
-    
-        console.error("upload resume service error ", error);
-        return {
-            message: "upload resume service error",
-        }
+  // Check for duplicates based on originalName
+  const existingResume = await prisma.resume.findFirst({
+    where: { originalName: originalName },
+  });
+  console.log("Checking duplicate in DB: ", existingResume);
+  
+  if (existingResume) {
+    return { resume: existingResume };
   }
+  
+  const resume = await prisma.resume.create({ 
+    data: { fileName: existingfileName, filePath: existingfilePath, originalName: originalName },
+  });
+  
+  return { resume };
 };
 
 

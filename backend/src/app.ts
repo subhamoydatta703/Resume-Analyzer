@@ -4,12 +4,29 @@ import cors from "cors";
 import { prisma } from "./config/db";
 
 import multerRoutes from "./routes/multerRoutes";
-import resumeAnalysisRoutes from "./routes/resumeAnalysysRoutes";
+import resumeAnalysisRoutes from "./routes/resumeAnalysisRoutes";
 
 const app = express();
 
 // Middlewares
-app.use(cors());
+const allowedOrigins = process.env.FRONTEND_URL
+  ? process.env.FRONTEND_URL.split(",")
+  : ["http://localhost:5173", "http://localhost:3000"];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like server-to-server or tools like curl)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      } else {
+        return callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 // API Routes

@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { analyzeThisResume } from "../services/resumeanalysisServis";
+import { analyzeThisResume } from "../services/resumeAnalysisService";
 
 export const analyzeResume = async (req: Request, res: Response) => {
     try {

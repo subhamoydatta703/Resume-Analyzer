@@ -94,12 +94,12 @@ resume_analyzer/
 │   │   │   └── multerMiddleware.ts
 │   │   ├── routes/       # API route definitions
 │   │   │   ├── multerRoutes.ts
-│   │   │   └── resumeAnalysysRoutes.ts
+│   │   │   └── resumeAnalysisRoutes.ts
 │   │   ├── services/     # Business logic and database operations
 │   │   │   ├── geminiService.ts
 │   │   │   ├── getResumeService.ts
-│   │   │   ├── resumeanalysisServis.ts
-│   │   │   └── uploadResumeServive.ts
+│   │   │   ├── resumeAnalysisService.ts
+│   │   │   └── uploadResumeService.ts
 │   │   ├── utils/        # Utility helpers (PDF parser setup)
 │   │   │   └── pdfParser.ts
 │   │   ├── app.ts        # Express application configuration and routing

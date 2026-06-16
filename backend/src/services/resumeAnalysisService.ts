@@ -1,6 +1,6 @@
 
 import { prisma } from "../config/db";
-import { getFilePathFromDB } from "../services/uploadResumeServive";
+import { getFilePathFromDB } from "../services/uploadResumeService";
 import { extractPDFText } from "../utils/pdfParser";
 import { analyzeWithGemini } from "./geminiService";
 export const analyzeThisResume = async (thisFileID: string) => {
@@ -20,7 +20,18 @@ export const analyzeThisResume = async (thisFileID: string) => {
         }
         const extractedData = await extractPDFText(filePath);
         const analyzedData = await analyzeWithGemini(extractedData);
-        const parsedAnalysis = JSON.parse(analyzedData);
+        
+        let cleanText = analyzedData.trim();
+        // Remove markdown codeblock indicators if present
+        if (cleanText.startsWith("```json")) {
+            cleanText = cleanText.substring(7);
+        }
+        if (cleanText.endsWith("```")) {
+            cleanText = cleanText.substring(0, cleanText.length - 3);
+        }
+        cleanText = cleanText.trim();
+
+        const parsedAnalysis = JSON.parse(cleanText);
         await prisma.resume.update({
             where: {
                 id: thisFileID,
