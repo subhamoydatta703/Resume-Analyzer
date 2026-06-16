@@ -9,6 +9,15 @@ export const analyzeThisResume = async (thisFileID: string) => {
         if (!filePath) {
             throw new Error('File not found');
         }
+        const resume = await prisma.resume.findUnique({
+            where: { id: thisFileID },
+            // select: { status: true, analysisResult: true }
+        });
+        if (resume && resume.status === "COMPLETED" && resume.analysisResult) {
+            return typeof resume.analysisResult === "string"
+                ? resume.analysisResult
+                : JSON.stringify(resume.analysisResult);
+        }
         const extractedData = await extractPDFText(filePath);
         const analyzedData = await analyzeWithGemini(extractedData);
         const parsedAnalysis = JSON.parse(analyzedData);

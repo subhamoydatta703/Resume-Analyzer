@@ -3,7 +3,7 @@ import { Sparkles, AlertCircle, RefreshCw, Activity, Sun, Moon } from "lucide-re
 import { ResumeUploader } from "../components/ResumeUploader";
 import { PendingScanner } from "../components/PendingScanner";
 import { AnalysisDashboard } from "../components/AnalysisDashboard";
-import { uploadResume, analyzeResume } from "../services/api";
+import { uploadResume, analyzeResume, getResumeDetails } from "../services/api";
 import type { UploadState } from "../types";
 
 export const UploadPage: React.FC = () => {
@@ -87,30 +87,88 @@ export const UploadPage: React.FC = () => {
   };
 
   const startPolling = async (resumeId: string) => {
+    let attempts = 0;
+    const maxAttempts = 30; // 30 attempts * 2 seconds = 60 seconds max
+
+    // 1. Initial check to see if the resume has already been analyzed (e.g. cached/completed in DB)
+    try {
+      const initialCheck = await getResumeDetails(resumeId);
+      if (initialCheck.status === "COMPLETED" && initialCheck.analysisResult) {
+        setUploadState((prev) => ({
+          ...prev,
+          status: "completed",
+          analysisResult: initialCheck.analysisResult || null,
+          error: null,
+        }));
+        return;
+      }
+    } catch (err) {
+      console.warn("Initial DB cache check failed/pending, triggering analysis...", err);
+    }
+
+    // 2. Trigger the analysis via POST. Since the connection might be synchronous and block,
+    // we fire the request and handle completion.
     try {
       const response = await analyzeResume(resumeId);
-      console.log("Live analysis response:", response);
+      console.log("Analysis POST response:", response);
 
-      setUploadState((prev) => ({
-        ...prev,
-        status: "completed",
-        analysisResult: response.analysisResult || null,
-        error: null,
-      }));
+      if (response.status === "COMPLETED" && response.analysisResult) {
+        setUploadState((prev) => ({
+          ...prev,
+          status: "completed",
+          analysisResult: response.analysisResult || null,
+          error: null,
+        }));
+        return;
+      }
     } catch (err: any) {
-      console.error("Analysis error:", err);
-
-      const errorMessage =
-        err.response?.data?.message ||
-        err.message ||
-        "Failed to fetch analysis details from server.";
-
-      setUploadState((prev) => ({
-        ...prev,
-        status: "failed",
-        error: errorMessage,
-      }));
+      console.error("POST analysis failed, checking for updates...", err);
+      // If POST fails (e.g., timeout/network issue), the server might still process the analysis.
+      // We fall back to polling the GET endpoint below.
     }
+
+    // 3. Polling loop: fallback/monitoring status via GET request
+    const pollInterval = window.setInterval(async () => {
+      attempts++;
+      try {
+        const check = await getResumeDetails(resumeId);
+        if (check.status === "COMPLETED" && check.analysisResult) {
+          window.clearInterval(pollInterval);
+          setUploadState((prev) => ({
+            ...prev,
+            status: "completed",
+            analysisResult: check.analysisResult || null,
+            error: null,
+          }));
+        } else if (check.status === "FAILED") {
+          window.clearInterval(pollInterval);
+          setUploadState((prev) => ({
+            ...prev,
+            status: "failed",
+            error: "Resume analysis failed on the server.",
+          }));
+        } else if (attempts >= maxAttempts) {
+          window.clearInterval(pollInterval);
+          setUploadState((prev) => ({
+            ...prev,
+            status: "failed",
+            error: "Analysis timed out. Please try again.",
+          }));
+        }
+      } catch (pollErr: any) {
+        console.error("Error during polling:", pollErr);
+        if (attempts >= maxAttempts) {
+          window.clearInterval(pollInterval);
+          setUploadState((prev) => ({
+            ...prev,
+            status: "failed",
+            error: pollErr.message || "Failed to retrieve analysis status.",
+          }));
+        }
+      }
+    }, 2000);
+
+    pollingTimerRef.current = pollInterval;
   };
 
   const handleReset = () => {

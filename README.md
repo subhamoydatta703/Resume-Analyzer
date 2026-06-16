@@ -4,6 +4,62 @@ An application to upload, parse, and analyze resumes. The project is split into 
 
 ---
 
+## System Architecture
+
+```mermaid
+graph TD
+    %% Frontend Components
+    subgraph Frontend [React Frontend]
+        UI[Upload UI / Dashboard]
+        API_Client[Axios API Client]
+        UI -->|Upload Action| API_Client
+    end
+
+    %% Backend Components
+    subgraph Backend [Express Backend Server]
+        Multer[Multer Middleware]
+        Router[Express Router]
+        Upload_Ctrl[uploadResumeController]
+        Analyze_Ctrl[analyzeResumeController]
+        Get_Ctrl[getResumeResultController]
+        PDF_Parser[PDF Parser Utils]
+        Gemini[Gemini AI Service]
+        
+        Multer -->|Saves PDF to public/data/uploads| Upload_Ctrl
+        Router -->|POST /api/resume/upload| Multer
+        Router -->|POST /api/analyze/:id| Analyze_Ctrl
+        Router -->|GET /api/analyze/:id/analyze| Get_Ctrl
+    end
+
+    %% Database & External Services
+    subgraph Database_Layer [Data Layer]
+        Prisma[Prisma Client]
+        DB[(PostgreSQL Database)]
+        Redis[(Redis Server)]
+        Prisma -->|Queries/Updates| DB
+    end
+
+    subgraph External [External Services]
+        GoogleGemini[Google Gemini API]
+    end
+
+    %% Connections
+    API_Client -->|POST /api/resume/upload| Router
+    API_Client -->|POST /api/analyze/:id| Router
+    API_Client -->|GET /api/analyze/:id/analyze| Router
+
+    Upload_Ctrl -->|1. Check Duplicate originalName <br> 2. Create PENDING Resume| Prisma
+    Analyze_Ctrl -->|1. Get File Path <br> 2. Check Completed Cache| Prisma
+    Analyze_Ctrl -->|3. Extract Text| PDF_Parser
+    Analyze_Ctrl -->|4. Send Text| Gemini
+    Gemini -->|5. Structure Analysis JSON| GoogleGemini
+    Analyze_Ctrl -->|6. Save result & set COMPLETED| Prisma
+
+    Get_Ctrl -->|Retrieve status & cached result| Prisma
+```
+
+---
+
 ## Repository Structure
 
 ```
@@ -127,15 +183,16 @@ resume_analyzer/
 
 ## API Endpoints
 
-### 1. Health Status
+### 1. Health Check
 - **URL**: `GET /health`
-- **Response**: Returns health parameters and database adapter connection status.
+- **Description**: Returns health parameters of the Express server and checking PostgreSQL database connection.
 
 ### 2. Upload Resume
 - **URL**: `POST /api/resume/upload`
 - **Headers**: `Content-Type: multipart/form-data`
 - **Body**: File field `resume` (accepts `.pdf` only)
-- **Response (Success)**:
+- **Features**: Checks if the resume already exists in the database by `originalName`. If found, it returns the existing record directly (allowing immediate frontend rendering from the DB cache).
+- **Response (Success - New Upload)**:
   ```json
   {
     "success": true,
@@ -143,10 +200,72 @@ resume_analyzer/
     "fileData": {
       "resume": {
         "id": "cuid-string",
-        "fileName": "uploaded-filename",
+        "fileName": "randomized-filename",
+        "originalName": "original-filename.pdf",
+        "filePath": "uploads/randomized-filename",
         "status": "PENDING",
-        "createdAt": "2026-06-13T14:49:19.000Z",
-        "updatedAt": "2026-06-13T14:49:19.000Z"
+        "analysisResult": null,
+        "createdAt": "2026-06-16T07:08:31.671Z",
+        "updatedAt": "2026-06-16T07:08:31.671Z"
+      }
+    }
+  }
+  ```
+- **Response (Success - Existing/Cached Upload)**:
+  ```json
+  {
+    "success": true,
+    "message": "Resume uploaded successfully",
+    "fileData": {
+      "id": "cuid-string",
+      "fileName": "randomized-filename",
+      "originalName": "original-filename.pdf",
+      "filePath": "uploads/randomized-filename",
+      "status": "COMPLETED",
+      "analysisResult": { ... },
+      "createdAt": "2026-06-16T07:08:31.671Z",
+      "updatedAt": "2026-06-16T07:08:45.540Z"
+    }
+  }
+  ```
+
+### 3. Analyze Resume
+- **URL**: `POST /api/analyze/:id`
+- **Description**: Triggers layout text extraction and calls Gemini AI to compile structured resume analysis results. If the resume is already analyzed, it returns the cached string.
+- **Response (Success)**:
+  ```json
+  {
+    "success": true,
+    "message": "Resume uploaded successfully",
+    "extractedData": "raw-gemini-json-string-block"
+  }
+  ```
+
+### 4. Get Resume Analysis Result
+- **URL**: `GET /api/analyze/:id/analyze`
+- **Description**: Returns the status (`PENDING`, `COMPLETED`, `FAILED`) and cached `analysisResult` directly from the database. Used by the frontend for polling and reloading cached views.
+- **Response (Success)**:
+  ```json
+  {
+    "success": true,
+    "message": "Resume analysis result retrieved successfully",
+    "resumeRes": {
+      "status": "COMPLETED",
+      "analysisResult": {
+        "candidateInfo": {
+          "name": "Arpan Sarkar",
+          "email": "contact.arpan.sarkar@gmail.com",
+          "phone": "+91 86378 97186",
+          "location": "Barasat, West Bengal, India"
+        },
+        "summary": "Full-Stack Developer focused on fast, scalable backend systems...",
+        "skills": ["JavaScript", "TypeScript", "Node.js"],
+        "strengths": ["Strong technical stack", "Quantifiable achievements"],
+        "improvements": ["Clarify internship dates", "Expand on impact"],
+        "overallScore": 88,
+        "atsScore": 92,
+        "formattingScore": 85,
+        "suggestedRoles": ["Full Stack Developer", "Backend Engineer"]
       }
     }
   }

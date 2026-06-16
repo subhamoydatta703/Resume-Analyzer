@@ -9,8 +9,9 @@ export const uploadResume = async (req: Request, res: Response) => {
       });
     }
     const existFileName = req.file?.filename;
+    const originalName = req.file?.originalname;
     const relativePath = `uploads/${req.file?.filename}`
-    const fileData = await createFileDB(existFileName, relativePath);
+    const fileData = await createFileDB(existFileName, relativePath, originalName);
 
     console.log("fileData from uploadResume controller", JSON.stringify(fileData, null, 2));
 

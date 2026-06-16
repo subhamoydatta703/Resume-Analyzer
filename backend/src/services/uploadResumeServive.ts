@@ -2,11 +2,21 @@ import { prisma } from "../config/db";
 // import { Resume } from '../../prisma/generated/browser';
 import { extractPDFText } from "../utils/pdfParser";
 
-export const createFileDB = async (existingfileName: string, existingfilePath: string) => {
+export const createFileDB = async (existingfileName: string, existingfilePath: string, originalName: string) => {
   try {
     // issue with prisma db create , 
+    const existingResume = await prisma.resume.findFirst({
+      where: { originalName: originalName },
+    
+    })
+    console.log("The resume already exist in database: ", existingResume);
+    
+    if(existingResume){
+      return existingResume
+    }
+    
     const resume = await prisma.resume.create({ 
-      data: { fileName: existingfileName, filePath: existingfilePath },
+      data: { fileName: existingfileName, filePath: existingfilePath, originalName: originalName },
     });
     // const filepathPdf = await getFilePathFromDB(resume.id);
     // const extractedData = await extractPDFText(resume.filePath);

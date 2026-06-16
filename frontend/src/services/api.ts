@@ -188,11 +188,12 @@ export const uploadResume = async (
   const data = response.data;
   console.log("Upload API raw response data:", data);
 
-  const resumeId = data.fileData?.resume?.id || data.resumeId || "";
+  const resumeId = data.fileData?.resume?.id || data.fileData?.id || data.resumeId || "";
+  const status = data.fileData?.resume?.status || data.fileData?.status || "PENDING";
 
   return {
     resumeId,
-    status: "PENDING",
+    status: status as "PENDING" | "COMPLETED" | "FAILED",
   };
 };
 
@@ -209,6 +210,39 @@ export const analyzeResume = async (
     id: resumeId,
     status: "COMPLETED",
     analysisResult: parseAnalysisResult(extractedText)
+  };
+};
+
+export const getResumeDetails = async (
+  resumeId: string
+): Promise<ResumeDetailsResponse> => {
+  const response = await apiClient.get<any>(`/api/analyze/${resumeId}/analyze`);
+  const data = response.data;
+  console.log("Get Resume Details API raw response data:", data);
+
+  if (data.success && data.resumeRes) {
+    const { status, analysisResult } = data.resumeRes;
+    if (status === "COMPLETED" && analysisResult) {
+      const resultString = typeof analysisResult === "string" 
+        ? analysisResult 
+        : JSON.stringify(analysisResult);
+        
+      return {
+        id: resumeId,
+        status: "COMPLETED",
+        analysisResult: parseAnalysisResult(resultString),
+      };
+    }
+    
+    return {
+      id: resumeId,
+      status: status as "PENDING" | "FAILED",
+    };
+  }
+
+  return {
+    id: resumeId,
+    status: "PENDING",
   };
 };
 
