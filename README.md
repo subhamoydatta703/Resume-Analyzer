@@ -4,7 +4,7 @@ An application to upload, parse, and analyze resumes. The project is split into 
 
 ---
 
-## System Architecture
+### System Architecture
 
 ```mermaid
 graph TD
@@ -35,7 +35,7 @@ graph TD
     subgraph Database_Layer [Data Layer]
         Prisma[Prisma Client]
         DB[(PostgreSQL Database)]
-        Redis[(Redis Server)]
+        Redis[(Redis Cache)]
         Prisma -->|Queries/Updates| DB
     end
 
@@ -49,13 +49,19 @@ graph TD
     API_Client -->|GET /api/analyze/:id/analyze| Router
 
     Upload_Ctrl -->|1. Check Duplicate originalName <br> 2. Create PENDING Resume| Prisma
-    Analyze_Ctrl -->|1. Get File Path <br> 2. Check Completed Cache| Prisma
-    Analyze_Ctrl -->|3. Extract Text| PDF_Parser
-    Analyze_Ctrl -->|4. Send Text| Gemini
-    Gemini -->|5. Structure Analysis JSON| GoogleGemini
-    Analyze_Ctrl -->|6. Save result & set COMPLETED| Prisma
+    
+    %% Analysis flow
+    Analyze_Ctrl -->|1. Check Completed Cache| Prisma
+    Analyze_Ctrl -->|2. Extract Text| PDF_Parser
+    Analyze_Ctrl -->|3. Send Text| Gemini
+    Gemini -->|4. Structure Analysis JSON| GoogleGemini
+    Analyze_Ctrl -->|5. Save result & set COMPLETED| Prisma
 
-    Get_Ctrl -->|Retrieve status & cached result| Prisma
+    %% Get analysis result caching flow
+    Get_Ctrl -->|1. Check Cache| Redis
+    Redis -- Cache Hit -->|Return Cached Data| Get_Ctrl
+    Redis -- Cache Miss -->|2. Fetch Resume| Prisma
+    Prisma -->|3. Save to Redis Cache (300s)| Redis
 ```
 
 ---
@@ -65,29 +71,54 @@ graph TD
 ```
 resume_analyzer/
 ├── backend/          # Express API server powered by Bun & TypeScript
-│   ├── prisma/       # Prisma ORM schema and database migrations
+│   ├── prisma/       # Prisma ORM schema, migrations, and configs
+│   │   ├── migrations/
+│   │   └── schema.prisma
 │   ├── public/       # Static public files
 │   │   └── data/
 │   │       └── uploads/ # Uploaded resumes (Git-ignored)
 │   ├── src/          # Application source code
-│   │   ├── config/       # Configurations (DB, database adapters, etc.)
-│   │   ├── controllers/  # Request handlers (resume upload handlers)
+│   │   ├── config/       # Configurations (DB connection, Redis client setup)
+│   │   │   ├── db.ts
+│   │   │   └── redis.ts
+│   │   ├── controllers/  # Request handlers
+│   │   │   ├── analyzeResumeController.ts
+│   │   │   ├── getResumeResultController.ts
+│   │   │   └── uploadResumeController.ts
 │   │   ├── middleware/   # Custom Express middlewares (Multer setup)
-│   │   ├── routes/       # API route definitions (upload routes)
-│   │   ├── services/     # Business logic & database interaction services
-│   │   ├── app.ts        # Express application setup and routing
-│   │   └── server.ts     # Server entry point
-│   ├── package.json  # Bun dependencies, Prisma scripts, and setup configurations
+│   │   │   └── multerMiddleware.ts
+│   │   ├── routes/       # API route definitions
+│   │   │   ├── multerRoutes.ts
+│   │   │   └── resumeAnalysysRoutes.ts
+│   │   ├── services/     # Business logic & database services
+│   │   │   ├── geminiService.ts
+│   │   │   ├── getResumeService.ts
+│   │   │   ├── resumeanalysisServis.ts
+│   │   │   └── uploadResumeServive.ts
+│   │   ├── utils/        # Utility helpers (PDF parser setup)
+│   │   │   └── pdfParser.ts
+│   │   ├── app.ts        # Express application setup, middlewares, and routing
+│   │   └── server.ts     # Server entry point, database, and Redis connection setup
+│   ├── package.json  # Bun dependencies, Prisma scripts, and configurations
 │   └── tsconfig.json # TypeScript configuration
 └── frontend/         # React + TypeScript + Vite web application
     ├── src/
-    │   ├── components/  # Reusable UI elements (ResumeUploader drag & drop)
-    │   ├── pages/       # Page components (UploadPage layout & states)
-    │   ├── services/    # Axios API client integrations (Axios configuration)
+    │   ├── assets/      # Graphical assets and logos
+    │   ├── components/  # Reusable UI components
+    │   │   ├── AnalysisDashboard.tsx  # Interactive scoring & structured analysis view
+    │   │   ├── PendingScanner.tsx     # Progress indicator showing parser stages
+    │   │   └── ResumeUploader.tsx     # Drag & drop upload area with progress bar
+    │   ├── pages/       # Page components
+    │   │   └── UploadPage.tsx         # Main entry point for theme handling & upload flow
+    │   ├── services/    # API integration services
+    │   │   └── api.ts                 # Axios HTTP client, API mappings, and legacy parser fallbacks
     │   ├── types/       # TypeScript definition files
+    │   │   └── index.ts               # Shared types, state models, and API responses
+    │   ├── App.css      # CSS baseline styles
     │   ├── App.tsx      # Main application router/view mount
-    │   └── main.tsx     # Application mounting point
-    ├── package.json     # Node script configuration
+    │   ├── index.css    # Tailwind CSS layout utility directives
+    │   └── main.tsx     # Web entry point and React root mounting
+    ├── package.json     # Node scripts & React dependencies
     └── tailwind.config.js # Tailwind CSS configuration
 ```
 
@@ -100,6 +131,8 @@ resume_analyzer/
 - **Backend Framework**: [Express](https://expressjs.com/) with TypeScript
 - **Database ORM**: [Prisma](https://www.prisma.io/) (configured for PostgreSQL with `@prisma/adapter-pg` pool)
 - **File Upload**: [Multer](https://github.com/expressjs/multer)
+- **In-Memory Cache**: [Redis](https://redis.io/) (with caching for resume results lookup)
+- **AI Integration**: Google GenAI SDK (`@google/genai`)
 
 ### Frontend
 - **Framework**: [React](https://react.dev/) + [Vite](https://vite.dev/) with TypeScript
@@ -115,6 +148,7 @@ resume_analyzer/
 
 - **Bun** (v1.x or higher) installed on your local machine.
 - **PostgreSQL** database instance.
+- **Redis** server running locally (default port `6379`).
 
 ### 1. Backend Setup
 
@@ -185,88 +219,33 @@ resume_analyzer/
 
 ### 1. Health Check
 - **URL**: `GET /health`
-- **Description**: Returns health parameters of the Express server and checking PostgreSQL database connection.
+- **Method**: `GET`
+- **Description**: Inspects system health parameters, specifically verifying the Express server status and database connectivity. It returns a status message indicating overall system health and database adapter connection details.
 
 ### 2. Upload Resume
 - **URL**: `POST /api/resume/upload`
-- **Headers**: `Content-Type: multipart/form-data`
-- **Body**: File field `resume` (accepts `.pdf` only)
-- **Features**: Checks if the resume already exists in the database by `originalName`. If found, it returns the existing record directly (allowing immediate frontend rendering from the DB cache).
-- **Response (Success - New Upload)**:
-  ```json
-  {
-    "success": true,
-    "message": "Resume uploaded successfully",
-    "fileData": {
-      "resume": {
-        "id": "cuid-string",
-        "fileName": "randomized-filename",
-        "originalName": "original-filename.pdf",
-        "filePath": "uploads/randomized-filename",
-        "status": "PENDING",
-        "analysisResult": null,
-        "createdAt": "2026-06-16T07:08:31.671Z",
-        "updatedAt": "2026-06-16T07:08:31.671Z"
-      }
-    }
-  }
-  ```
-- **Response (Success - Existing/Cached Upload)**:
-  ```json
-  {
-    "success": true,
-    "message": "Resume uploaded successfully",
-    "fileData": {
-      "id": "cuid-string",
-      "fileName": "randomized-filename",
-      "originalName": "original-filename.pdf",
-      "filePath": "uploads/randomized-filename",
-      "status": "COMPLETED",
-      "analysisResult": { ... },
-      "createdAt": "2026-06-16T07:08:31.671Z",
-      "updatedAt": "2026-06-16T07:08:45.540Z"
-    }
-  }
-  ```
+- **Method**: `POST`
+- **Content Type**: `multipart/form-data`
+- **Payload**: Includes a PDF document attached via the `resume` form parameter.
+- **Workflow**:
+  - The server checks if a resume with the same original filename already exists in the database.
+  - If a match is found, the server fetches and returns the existing database record directly, leveraging cache storage.
+  - If the resume is new, it generates a unique database ID, saves the PDF file under a randomized identifier, initializes its status as pending, and returns the newly registered resume record.
 
 ### 3. Analyze Resume
 - **URL**: `POST /api/analyze/:id`
-- **Description**: Triggers layout text extraction and calls Gemini AI to compile structured resume analysis results. If the resume is already analyzed, it returns the cached string.
-- **Response (Success)**:
-  ```json
-  {
-    "success": true,
-    "message": "Resume uploaded successfully",
-    "extractedData": "raw-gemini-json-string-block"
-  }
-  ```
+- **Method**: `POST`
+- **Parameters**: Requires the unique `id` of the resume in the URL path.
+- **Workflow**:
+  - The server reads the PDF file corresponding to the given ID and extracts its text.
+  - The text is sent to the Gemini AI service to generate structured analytics.
+  - The resulting analysis is parsed, saved to the database, the record's status is updated to completed, and the structured response data is returned to the client.
+  - If the resume is already analyzed, the server skips the parser and LLM call and returns the cached analysis string directly.
 
 ### 4. Get Resume Analysis Result
 - **URL**: `GET /api/analyze/:id/analyze`
-- **Description**: Returns the status (`PENDING`, `COMPLETED`, `FAILED`) and cached `analysisResult` directly from the database. Used by the frontend for polling and reloading cached views.
-- **Response (Success)**:
-  ```json
-  {
-    "success": true,
-    "message": "Resume analysis result retrieved successfully",
-    "resumeRes": {
-      "status": "COMPLETED",
-      "analysisResult": {
-        "candidateInfo": {
-          "name": "Arpan Sarkar",
-          "email": "contact.arpan.sarkar@gmail.com",
-          "phone": "+91 86378 97186",
-          "location": "Barasat, West Bengal, India"
-        },
-        "summary": "Full-Stack Developer focused on fast, scalable backend systems...",
-        "skills": ["JavaScript", "TypeScript", "Node.js"],
-        "strengths": ["Strong technical stack", "Quantifiable achievements"],
-        "improvements": ["Clarify internship dates", "Expand on impact"],
-        "overallScore": 88,
-        "atsScore": 92,
-        "formattingScore": 85,
-        "suggestedRoles": ["Full Stack Developer", "Backend Engineer"]
-      }
-    }
-  }
-  ```
+- **Method**: `GET`
+- **Parameters**: Requires the unique `id` of the resume in the URL path.
+- **Workflow**:
+  - Queries the database to retrieve the current status (`PENDING`, `COMPLETED`, or `FAILED`) and `analysisResult` for the requested resume ID.
+  - Used by the frontend page to support progress polling, failure handling, and loading pre-analyzed details without re-triggering expensive AI generations.
