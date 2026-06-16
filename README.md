@@ -1,6 +1,11 @@
 # Resume Analyzer
 
-An application to upload, parse, and analyze resumes. The project is split into a robust backend API and a modern, responsive frontend web application.
+A high-performance, AI-powered system designed to upload, parse, and evaluate resumes. The application is divided into a robust, cache-efficient backend API and a premium, responsive React frontend.
+
+### Key Features
+- **AI-Driven Evaluation**: Leverages the Google Gemini API to extract candidate info, categorize technical skills, highlight key strengths, recommend improvements, score compatibility, and suggest roles.
+- **Multi-Tier Caching**: Utilizes an in-memory Redis cache for ultra-fast retrieval of analysis results and implements a duplicate-check workflow (using original filenames) to bypass redundant database inserts and expensive AI calls.
+- **Modern User Experience**: Offers a sleek, dark-themed drag-and-drop upload interface, a real-time parser scanner, and interactive dashboards.
 
 ---
 
@@ -59,8 +64,8 @@ graph TD
 
     %% Get analysis result caching flow
     Get_Ctrl -->|1. Check Cache| Redis
-    Redis -- Cache Hit -->|Return Cached Data| Get_Ctrl
-    Redis -- Cache Miss -->|2. Fetch Resume| Prisma
+    Redis -->|Cache Hit - Return Data| Get_Ctrl
+    Redis -->|Cache Miss - Fetch Resume| Prisma
     Prisma -->|3. Save to Redis Cache (300s)| Redis
 ```
 
