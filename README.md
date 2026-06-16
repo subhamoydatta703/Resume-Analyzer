@@ -1,11 +1,11 @@
 # Resume Analyzer
 
-A high-performance, AI-powered system designed to upload, parse, and evaluate resumes. The application is divided into a robust, cache-efficient backend API and a premium, responsive React frontend.
+A high-performance, artificial intelligence-powered system designed to process, parse, and analyze professional resumes. The application is divided into a robust, cache-efficient backend API and a responsive React frontend web application.
 
 ### Key Features
-- **AI-Driven Evaluation**: Leverages the Google Gemini API to extract candidate info, categorize technical skills, highlight key strengths, recommend improvements, score compatibility, and suggest roles.
-- **Multi-Tier Caching**: Utilizes an in-memory Redis cache for ultra-fast retrieval of analysis results and implements a duplicate-check workflow (using original filenames) to bypass redundant database inserts and expensive AI calls.
-- **Modern User Experience**: Offers a sleek, dark-themed drag-and-drop upload interface, a real-time parser scanner, and interactive dashboards.
+- **AI-Driven Evaluation**: Leverages the Google Gemini API to extract candidate information, categorize technical competencies, highlight professional strengths, recommend constructive improvements, score ATS compatibility, and suggest relevant job roles.
+- **Multi-Tier Caching**: Utilizes an in-memory Redis cache for high-speed retrieval of analysis results and implements a duplicate-check workflow utilizing original file names to bypass redundant database inserts and computationally expensive AI API calls.
+- **Modern User Experience**: Provides a clean, dark-themed drag-and-drop upload interface, a real-time parser progress tracking monitor, and interactive analytics dashboards.
 
 ---
 
@@ -14,59 +14,59 @@ A high-performance, AI-powered system designed to upload, parse, and evaluate re
 ```mermaid
 graph TD
     %% Frontend Components
-    subgraph Frontend [React Frontend]
-        UI[Upload UI / Dashboard]
-        API_Client[Axios API Client]
-        UI -->|Upload Action| API_Client
+    subgraph Frontend ["React Frontend"]
+        UI["Upload UI / Dashboard"]
+        API_Client["Axios API Client"]
+        UI -->|"Upload Action"| API_Client
     end
 
     %% Backend Components
-    subgraph Backend [Express Backend Server]
-        Multer[Multer Middleware]
-        Router[Express Router]
-        Upload_Ctrl[uploadResumeController]
-        Analyze_Ctrl[analyzeResumeController]
-        Get_Ctrl[getResumeResultController]
-        PDF_Parser[PDF Parser Utils]
-        Gemini[Gemini AI Service]
+    subgraph Backend ["Express Backend Server"]
+        Multer["Multer Middleware"]
+        Router["Express Router"]
+        Upload_Ctrl["uploadResumeController"]
+        Analyze_Ctrl["analyzeResumeController"]
+        Get_Ctrl["getResumeResultController"]
+        PDF_Parser["PDF Parser Utils"]
+        Gemini["Gemini AI Service"]
         
-        Multer -->|Saves PDF to public/data/uploads| Upload_Ctrl
-        Router -->|POST /api/resume/upload| Multer
-        Router -->|POST /api/analyze/:id| Analyze_Ctrl
-        Router -->|GET /api/analyze/:id/analyze| Get_Ctrl
+        Multer -->|"Saves PDF to public/data/uploads"| Upload_Ctrl
+        Router -->|"POST /api/resume/upload"| Multer
+        Router -->|"POST /api/analyze/:id"| Analyze_Ctrl
+        Router -->|"GET /api/analyze/:id/analyze"| Get_Ctrl
     end
 
     %% Database & External Services
-    subgraph Database_Layer [Data Layer]
-        Prisma[Prisma Client]
-        DB[(PostgreSQL Database)]
-        Redis[(Redis Cache)]
-        Prisma -->|Queries/Updates| DB
+    subgraph Database_Layer ["Data Layer"]
+        Prisma["Prisma Client"]
+        DB[("PostgreSQL Database")]
+        Redis[("Redis Cache")]
+        Prisma -->|"Queries/Updates"| DB
     end
 
-    subgraph External [External Services]
-        GoogleGemini[Google Gemini API]
+    subgraph External ["External Services"]
+        GoogleGemini["Google Gemini API"]
     end
 
     %% Connections
-    API_Client -->|POST /api/resume/upload| Router
-    API_Client -->|POST /api/analyze/:id| Router
-    API_Client -->|GET /api/analyze/:id/analyze| Router
+    API_Client -->|"POST /api/resume/upload"| Router
+    API_Client -->|"POST /api/analyze/:id"| Router
+    API_Client -->|"GET /api/analyze/:id/analyze"| Router
 
-    Upload_Ctrl -->|1. Check Duplicate originalName <br> 2. Create PENDING Resume| Prisma
+    Upload_Ctrl -->|"1. Check Duplicate originalName, 2. Create PENDING Resume"| Prisma
     
     %% Analysis flow
-    Analyze_Ctrl -->|1. Check Completed Cache| Prisma
-    Analyze_Ctrl -->|2. Extract Text| PDF_Parser
-    Analyze_Ctrl -->|3. Send Text| Gemini
-    Gemini -->|4. Structure Analysis JSON| GoogleGemini
-    Analyze_Ctrl -->|5. Save result & set COMPLETED| Prisma
+    Analyze_Ctrl -->|"1. Check Completed Cache"| Prisma
+    Analyze_Ctrl -->|"2. Extract Text"| PDF_Parser
+    Analyze_Ctrl -->|"3. Send Text"| Gemini
+    Gemini -->|"4. Structure Analysis JSON"| GoogleGemini
+    Analyze_Ctrl -->|"5. Save result & set COMPLETED"| Prisma
 
     %% Get analysis result caching flow
-    Get_Ctrl -->|1. Check Cache| Redis
-    Redis -->|Cache Hit - Return Data| Get_Ctrl
-    Redis -->|Cache Miss - Fetch Resume| Prisma
-    Prisma -->|3. Save to Redis Cache (300s)| Redis
+    Get_Ctrl -->|"1. Check Cache"| Redis
+    Redis -->|"Cache Hit - Return Data"| Get_Ctrl
+    Redis -->|"Cache Miss - Fetch Resume"| Prisma
+    Prisma -->|"3. Save to Redis Cache 300s"| Redis
 ```
 
 ---
@@ -75,15 +75,15 @@ graph TD
 
 ```
 resume_analyzer/
-├── backend/          # Express API server powered by Bun & TypeScript
-│   ├── prisma/       # Prisma ORM schema, migrations, and configs
+├── backend/          # Express API server powered by Bun and TypeScript
+│   ├── prisma/       # Prisma ORM schema, migrations, and database configurations
 │   │   ├── migrations/
 │   │   └── schema.prisma
 │   ├── public/       # Static public files
 │   │   └── data/
 │   │       └── uploads/ # Uploaded resumes (Git-ignored)
 │   ├── src/          # Application source code
-│   │   ├── config/       # Configurations (DB connection, Redis client setup)
+│   │   ├── config/       # Configuration files (DB connection, Redis client setup)
 │   │   │   ├── db.ts
 │   │   │   └── redis.ts
 │   │   ├── controllers/  # Request handlers
@@ -95,35 +95,35 @@ resume_analyzer/
 │   │   ├── routes/       # API route definitions
 │   │   │   ├── multerRoutes.ts
 │   │   │   └── resumeAnalysysRoutes.ts
-│   │   ├── services/     # Business logic & database services
+│   │   ├── services/     # Business logic and database operations
 │   │   │   ├── geminiService.ts
 │   │   │   ├── getResumeService.ts
 │   │   │   ├── resumeanalysisServis.ts
 │   │   │   └── uploadResumeServive.ts
 │   │   ├── utils/        # Utility helpers (PDF parser setup)
 │   │   │   └── pdfParser.ts
-│   │   ├── app.ts        # Express application setup, middlewares, and routing
+│   │   ├── app.ts        # Express application configuration and routing
 │   │   └── server.ts     # Server entry point, database, and Redis connection setup
-│   ├── package.json  # Bun dependencies, Prisma scripts, and configurations
+│   ├── package.json  # Bun dependencies, Prisma scripts, and project configurations
 │   └── tsconfig.json # TypeScript configuration
 └── frontend/         # React + TypeScript + Vite web application
     ├── src/
-    │   ├── assets/      # Graphical assets and logos
+    │   ├── assets/      # Graphical assets and static resources
     │   ├── components/  # Reusable UI components
-    │   │   ├── AnalysisDashboard.tsx  # Interactive scoring & structured analysis view
+    │   │   ├── AnalysisDashboard.tsx  # Scoring and structured analysis views
     │   │   ├── PendingScanner.tsx     # Progress indicator showing parser stages
-    │   │   └── ResumeUploader.tsx     # Drag & drop upload area with progress bar
-    │   ├── pages/       # Page components
-    │   │   └── UploadPage.tsx         # Main entry point for theme handling & upload flow
+    │   │   └── ResumeUploader.tsx     # Drag and drop upload area with progress bar
+    │   ├── pages/       # Page layout components
+    │   │   └── UploadPage.tsx         # Main entry point for theme handling and upload flows
     │   ├── services/    # API integration services
     │   │   └── api.ts                 # Axios HTTP client, API mappings, and legacy parser fallbacks
-    │   ├── types/       # TypeScript definition files
+    │   ├── types/       # TypeScript type definitions
     │   │   └── index.ts               # Shared types, state models, and API responses
     │   ├── App.css      # CSS baseline styles
     │   ├── App.tsx      # Main application router/view mount
     │   ├── index.css    # Tailwind CSS layout utility directives
     │   └── main.tsx     # Web entry point and React root mounting
-    ├── package.json     # Node scripts & React dependencies
+    ├── package.json     # Node scripts and React dependencies
     └── tailwind.config.js # Tailwind CSS configuration
 ```
 
@@ -132,18 +132,18 @@ resume_analyzer/
 ## Tech Stack
 
 ### Backend
-- **Runtime**: [Bun](https://bun.sh/)
-- **Backend Framework**: [Express](https://expressjs.com/) with TypeScript
-- **Database ORM**: [Prisma](https://www.prisma.io/) (configured for PostgreSQL with `@prisma/adapter-pg` pool)
-- **File Upload**: [Multer](https://github.com/expressjs/multer)
-- **In-Memory Cache**: [Redis](https://redis.io/) (with caching for resume results lookup)
+- **Runtime**: Bun
+- **Framework**: Express with TypeScript
+- **Database ORM**: Prisma (configured for PostgreSQL with `@prisma/adapter-pg` connection pooling)
+- **File Upload**: Multer
+- **In-Memory Cache**: Redis (caching resume results lookup)
 - **AI Integration**: Google GenAI SDK (`@google/genai`)
 
 ### Frontend
-- **Framework**: [React](https://react.dev/) + [Vite](https://vite.dev/) with TypeScript
-- **Styling**: [Tailwind CSS v3](https://tailwindcss.com/)
-- **HTTP Client**: [Axios](https://axios-http.com/)
-- **Icons**: [Lucide React](https://lucide.dev/)
+- **Framework**: React + Vite with TypeScript
+- **Styling**: Tailwind CSS v3
+- **HTTP Client**: Axios
+- **Icons**: Lucide React
 
 ---
 
@@ -151,9 +151,9 @@ resume_analyzer/
 
 ### Prerequisites
 
-- **Bun** (v1.x or higher) installed on your local machine.
+- **Bun** (v1.x or higher) installed locally.
 - **PostgreSQL** database instance.
-- **Redis** server running locally (default port `6379`).
+- **Redis** server running locally (default port 6379).
 
 ### 1. Backend Setup
 
@@ -223,12 +223,12 @@ resume_analyzer/
 ## API Endpoints
 
 ### 1. Health Check
-- **URL**: `GET /health`
+- **URL**: `/health`
 - **Method**: `GET`
 - **Description**: Inspects system health parameters, specifically verifying the Express server status and database connectivity. It returns a status message indicating overall system health and database adapter connection details.
 
 ### 2. Upload Resume
-- **URL**: `POST /api/resume/upload`
+- **URL**: `/api/resume/upload`
 - **Method**: `POST`
 - **Content Type**: `multipart/form-data`
 - **Payload**: Includes a PDF document attached via the `resume` form parameter.
@@ -238,7 +238,7 @@ resume_analyzer/
   - If the resume is new, it generates a unique database ID, saves the PDF file under a randomized identifier, initializes its status as pending, and returns the newly registered resume record.
 
 ### 3. Analyze Resume
-- **URL**: `POST /api/analyze/:id`
+- **URL**: `/api/analyze/:id`
 - **Method**: `POST`
 - **Parameters**: Requires the unique `id` of the resume in the URL path.
 - **Workflow**:
@@ -248,7 +248,7 @@ resume_analyzer/
   - If the resume is already analyzed, the server skips the parser and LLM call and returns the cached analysis string directly.
 
 ### 4. Get Resume Analysis Result
-- **URL**: `GET /api/analyze/:id/analyze`
+- **URL**: `/api/analyze/:id/analyze`
 - **Method**: `GET`
 - **Parameters**: Requires the unique `id` of the resume in the URL path.
 - **Workflow**:
