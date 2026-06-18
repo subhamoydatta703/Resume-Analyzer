@@ -6,6 +6,7 @@ import { prisma } from "./config/db";
 
 import multerRoutes from "./routes/multerRoutes";
 import resumeAnalysisRoutes from "./routes/resumeAnalysisRoutes";
+import webhookRoutes from "./routes/webhookRoutes";
 
 const app = express();
 
@@ -34,6 +35,7 @@ app.use(clerkMiddleware());
 // API Routes
 app.use("/api/resume", multerRoutes);
 app.use("/api/analyze", resumeAnalysisRoutes);
+app.use("/api/webhooks", webhookRoutes);
 // Health Check Route
 app.get("/health", async (req, res) => {
   let dbStatus = "unknown";
