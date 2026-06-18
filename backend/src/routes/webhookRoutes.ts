@@ -1,13 +1,15 @@
 import { Router, type Request, type Response } from "express";
 import { prisma } from "../config/db";
 import { verifyClerkWebhook } from "../services/clerkWebhookVerficationSerivce";
-import { handleClerkWebhookEvent } from "../services/handleCLerkWebhookEvent"
+import { handleClerkWebhookEvent } from "../services/handleClerkWebhookEvent";
 const router = Router()
 
 router.post("/clerk", async (req: Request, res: Response) => {
 
     try {
-        const payload = JSON.stringify(req.body);
+        const payload = (req as any).rawBody 
+            ? (req as any).rawBody.toString("utf8") 
+            : JSON.stringify(req.body);
         const headers = {
             "svix-id": req.headers["svix-id"] as string,
             "svix-timestamp":
@@ -23,10 +25,8 @@ router.post("/clerk", async (req: Request, res: Response) => {
 
         console.log(type);
 
-        //type = user.created
-        const result = await handleClerkWebhookEvent(type, data)
-
-        console.log(result);
+        
+        await handleClerkWebhookEvent(type, data);
         
         res.status(200).json({
             success: true,

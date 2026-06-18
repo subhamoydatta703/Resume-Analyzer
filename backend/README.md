@@ -24,6 +24,7 @@ Express 5 API for the Resume Analyzer app. It handles Clerk-authenticated upload
 - **File Uploads**: Multer
 - **AI**: Google Gemini SDK
 - **Validation**: Zod
+- **Webhooks Verification**: Svix
 
 
 ---
@@ -57,10 +58,13 @@ backend/
 |   |   `-- resume.queue.ts
 |   |-- routes/
 |   |   |-- multerRoutes.ts
-|   |   `-- resumeAnalysisRoutes.ts
+|   |   |-- resumeAnalysisRoutes.ts
+|   |   `-- webhookRoutes.ts
 |   |-- services/
+|   |   |-- clerkWebhookVerficationSerivce.ts
 |   |   |-- geminiService.ts
 |   |   |-- getResumeService.ts
+|   |   |-- handleClerkWebhookEvent.ts
 |   |   |-- resumeAnalysisService.ts
 |   |   |-- uploadResumeService.ts
 |   |   `-- workerService.ts
@@ -136,6 +140,10 @@ bun run db:studio
 - Auth required.
 - Verifies ownership and returns the latest analysis state.
 - Reads Redis cache first, then falls back to PostgreSQL.
+
+### `POST /api/webhooks/clerk`
+- Signature verification (Svix headers).
+- Processes Clerk user lifecycle events asynchronously.
 
 ---
 

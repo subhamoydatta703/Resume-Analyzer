@@ -3,7 +3,7 @@
 A resume analyzing and review platform built with Bun, Express, Prisma, Redis, BullMQ, Clerk, React, Vite, and Tailwind CSS. The app uploads PDF resumes, parses them asynchronously, and returns structured AI analysis with scores, extracted details, and improvement suggestions.
 
 ### Key Features
-- **Clerk-based authentication**: Frontend sign-in uses Clerk, and backend routes validate authenticated requests before reading or creating resume records.
+- **Clerk-based authentication & Webhooks**: Frontend sign-in uses Clerk, and backend user profiles are synchronized asynchronously via secure webhook events validated with Svix signatures.
 - **Asynchronous analysis pipeline**: Resume analysis runs through a BullMQ queue and background worker so uploads stay responsive.
 - **AI-driven evaluation**: Google Gemini powers resume parsing, scoring, skill extraction, ATS-style feedback, and suggested roles.
 - **Responsive frontend**: The UI uses a shared shell, mobile-friendly cards, and state-based screens for upload, pending, success, and error flows.
@@ -36,12 +36,16 @@ graph TD
         UploadRoute["POST /api/resume/upload"]
         AnalyzeRoute["POST /api/analyze/:id"]
         ResultRoute["GET /api/analyze/:id"]
+        WebhookRoute["POST /api/webhooks/clerk"]
         UploadCtrl["uploadResumeController"]
         AnalyzeCtrl["analyzeResumeController"]
         ResultCtrl["getResumeResultController"]
+        WebhookCtrl["webhookRoutes"]
         UploadSvc["uploadResumeService"]
         AnalyzeSvc["resumeAnalysisService"]
         GetSvc["getResumeService"]
+        WebhookVerifySvc["clerkWebhookVerficationSerivce"]
+        WebhookHandleSvc["handleClerkWebhookEvent"]
         Worker["workerService"]
         Parser["pdfParser.ts"]
         Gemini["geminiService.ts"]
@@ -64,6 +68,11 @@ graph TD
     Auth --> UploadRoute
     Auth --> AnalyzeRoute
     Auth --> ResultRoute
+    Clerk -->|"User events (svix signed)"| WebhookRoute
+    WebhookRoute --> WebhookCtrl
+    WebhookCtrl --> WebhookVerifySvc
+    WebhookCtrl --> WebhookHandleSvc
+    WebhookHandleSvc --> Prisma
 
     UploadRoute --> UploadCtrl
     AnalyzeRoute --> AnalyzeCtrl
@@ -116,12 +125,15 @@ resume_analyzer/
 |   |   |   `-- multerMiddleware.ts
 |   |   |-- queues/
 |   |   |   `-- resume.queue.ts
-|   |   |-- routes/
+|   |   |   |-- routes/
 |   |   |   |-- multerRoutes.ts
-|   |   |   `-- resumeAnalysisRoutes.ts
+|   |   |   |-- resumeAnalysisRoutes.ts
+|   |   |   `-- webhookRoutes.ts
 |   |   |-- services/
+|   |   |   |-- clerkWebhookVerficationSerivce.ts
 |   |   |   |-- geminiService.ts
 |   |   |   |-- getResumeService.ts
+|   |   |   |-- handleClerkWebhookEvent.ts
 |   |   |   |-- resumeAnalysisService.ts
 |   |   |   |-- uploadResumeService.ts
 |   |   |   `-- workerService.ts
@@ -170,6 +182,7 @@ resume_analyzer/
 - **Cache**: Redis
 - **File Upload**: Multer
 - **AI Integration**: Google Gemini
+- **Webhooks Verification**: Svix (Clerk event signature verification)
 
 ### Frontend
 - **Framework**: React 19 + Vite
@@ -298,10 +311,19 @@ resume_analyzer/
   - Falls back to PostgreSQL if the cache misses.
   - Returns the latest analysis state and structured result payload.
 
+### 5. Clerk Webhooks
+- **URL**: `/api/webhooks/clerk`
+- **Method**: `POST`
+- **Auth**: Signature verification via `svix-id`, `svix-timestamp`, and `svix-signature` headers.
+- **Workflow**:
+  - Validates the incoming webhook signature using the configured `CLERK_WEBHOOK_SECRET`.
+  - Performs upsert operations (`user.created`, `user.updated`) or deletes records (`user.deleted`) in the database.
+
 ---
 
 ## Notes
 
+- Uploaded files are stored under `backend/public/data/uploads/`.
 - The uploads directory is intentionally kept in git with [backend/public/data/uploads/.gitkeep](backend/public/data/uploads/.gitkeep) so the folder exists after clone.
 - Generated uploads are ignored by `.gitignore`.
 - The frontend uses Clerk auth, so requests should only succeed after sign-in and token retrieval.
