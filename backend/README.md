@@ -153,7 +153,9 @@ bun run start
 - **Route**: `POST /api/resume/upload`
 - **Auth**: Authorized (Bearer Token required)
 - **Payload**: `multipart/form-data` with `resume` file field (PDF format only, max 5MB).
-- **Details**: Validates, writes files to `public/data/uploads/`, and creates a database row marked `PENDING`.
+- **Details**: Validates and writes the PDF file to `public/data/uploads/`.
+  * **Duplicate/Re-upload Prevention**: If a resume with the same file name already exists for the user, it unlinks the old physical file from disk to save space. It then updates the database row with the new filepath, resets `status` to `"PENDING"`, and clears any previous analysis results by setting `analysisResult: Prisma.DbNull` (database-level NULL) to prevent displaying stale data.
+  * **New Upload**: Creates a new database row marked `PENDING`.
 
 ### 3. Initiate Resume Analysis
 - **Route**: `POST /api/analyze/:id`
@@ -176,7 +178,10 @@ bun run start
 
 The backend application is fully containerized. A single Dockerfile handles both the API server and worker services.
 
-### Running with Docker
+### Shared Storage Volume
+When running in a multi-container environment (like Docker Compose), both the `api` service and the `worker` service must share access to the uploaded files. This is accomplished by mounting a shared Docker volume at `/usr/src/app/public/data/uploads` in both containers.
+
+### Running with Docker (Manual)
 
 1. **API Server Container**:
    ```bash

@@ -202,11 +202,14 @@ You can run the entire ecosystem (Redis, PostgreSQL/External, API Server, Task W
 2. Configure frontend variables in `./frontend/.env` (or let compose fall back to defaults).
 3. Start all services:
    ```bash
-   docker-compose up --build -d
+   docker compose up --build -d
    ```
 4. Access the applications:
    - **Frontend UI Client**: [http://localhost:3000](http://localhost:3000)
    - **API Server Endpoint**: [http://localhost:5000/health](http://localhost:5000/health)
+
+> [!NOTE]
+> The Docker Compose configuration mounts a shared named volume `uploads_data` at `/usr/src/app/public/data/uploads` inside both the `api` (Express server) and `worker` (BullMQ worker) containers. This shared volume ensures that the background worker can read the PDF files uploaded by the API container.
 
 ---
 
@@ -224,5 +227,6 @@ You can run the entire ecosystem (Redis, PostgreSQL/External, API Server, Task W
 
 ## Notes & Exclusions
 
-- **PDF Storage**: Uploaded files are saved to `backend/public/data/uploads/`. In local development environments, files are ignored from Git commits. The folder structure is preserved using an empty [backend/public/data/uploads/.gitkeep](backend/public/data/uploads/.gitkeep) file.
+- **PDF Storage & Shared Volume**: Uploaded files are saved to `backend/public/data/uploads/`. In local development environments, files are ignored from Git commits. In Docker environments, this folder is backed by a shared volume so that both the API and worker containers access the exact same directory.
+- **Re-upload Cleanup**: If a user uploads a duplicate resume (same name and owner), the API deletes the previous version of the file from disk using `fs.unlink` to free space, updates the DB record with the new file path, resets the parsing state (`status: "PENDING"`), and resets the analysis field (`analysisResult: Prisma.DbNull`) to prevent displaying stale results.
 - **Cache Invalidation**: Analysis results are cached in Redis. When database updates occur or fresh analyses are completed, the corresponding entries are overwritten.

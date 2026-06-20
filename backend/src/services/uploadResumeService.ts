@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { prisma } from "../config/db";
+import { prisma, Prisma } from "../config/db";
 import { CreateResumeSchema } from "../utils/validation";
 
 export const createFileDB = async (
@@ -33,7 +33,7 @@ export const createFileDB = async (
         fileName: existingfileName,
         filePath: existingfilePath,
         status: "PENDING",
-        analysisResult: null,
+        analysisResult: Prisma.DbNull,
       },
     });
 
