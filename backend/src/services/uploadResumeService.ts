@@ -1,6 +1,7 @@
 import { prisma, Prisma } from "../config/db";
 import { CreateResumeSchema } from "../utils/validation";
 import { deleteFile } from "./storage/s3StorageService";
+import { redisClient } from "../config/redis.caching";
 
 export const createFileDB = async (
   s3Key: string, 
@@ -22,6 +23,13 @@ export const createFileDB = async (
       await deleteFile(existingResume.s3Key);
     } catch (err) {
       console.error("Failed to delete old file from S3:", err);
+    }
+
+    const cacheKey = `user:${userId}:resume:${existingResume.id}`;
+    try {
+      await redisClient.del(cacheKey);
+    } catch (err) {
+      console.error("Failed to invalidate Redis cache:", err);
     }
 
     const updatedResume = await prisma.resume.update({

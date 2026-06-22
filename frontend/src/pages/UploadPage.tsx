@@ -179,7 +179,7 @@ export const UploadPage: React.FC<UploadPageProps> = ({ theme, toggleTheme }) =>
                   fileName={uploadState.fileName}
                 />
               </div>
-            ) : uploadState.status === "completed" && uploadState.analysisResult ? (
+            ) : uploadState.status === "completed" && uploadState.analysisResult && typeof uploadState.analysisResult.overallScore === "number" ? (
               <div className="w-full max-w-5xl">
                 <AnalysisDashboard
                   analysisResult={uploadState.analysisResult}

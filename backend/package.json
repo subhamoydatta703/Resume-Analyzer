@@ -5,6 +5,7 @@
   "private": true,
   "scripts": {
     "start": "bun run src/server.ts",
+    "start:worker": "bun run src/services/workerService.ts",
     "dev": "bun --watch src/server.ts",
     "db:migrate": "bunx prisma migrate dev",
     "db:push": "bunx prisma db push",

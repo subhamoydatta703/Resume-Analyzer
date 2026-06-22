@@ -222,7 +222,7 @@ export const AnalysisDashboard: React.FC<Props> = ({ analysisResult, onReset, fi
                           {exp.company}
                         </p>
                         <ul className="mt-3.5 space-y-2">
-                          {(Array.isArray(exp.description) ? exp.description : [exp.description]).map((d: string, di: number) => (
+                          {(Array.isArray(exp.description) ? exp.description : [exp.description]).filter(Boolean).map((d: string, di: number) => (
                             <li key={di} className="flex items-start gap-2 text-[13px] leading-relaxed text-secondary-theme">
                               <span className="mt-2 h-1 w-1 shrink-0 bg-accent-theme" />
                               <span className="flex-1">{d}</span>
