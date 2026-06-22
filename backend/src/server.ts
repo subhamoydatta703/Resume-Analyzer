@@ -2,7 +2,7 @@ import "dotenv/config";
 import app from "./app";
 import { connectRedis } from "./config/redis.caching";
 import { verifyBullMQConnection } from "./config/redis.bullmq";
-import { log } from "node:console";
+import "./services/workerService"; 
 
 const PORT = process.env.PORT || 5000;
 async function startServer() {
