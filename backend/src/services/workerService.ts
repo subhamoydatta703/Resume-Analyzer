@@ -1,57 +1,52 @@
 import { Worker } from "bullmq";
-import { bullRedisConnection, verifyBullMQConnection } from "../config/redis.bullmq";
+import { bullRedisConnection } from "../config/redis.bullmq";
 import { analyzeThisResume } from "./resumeAnalysisService";
 import { workerPrisma } from "../config/workerDB";
-import { connectRedis } from "../config/redis.caching";
 
 let worker: Worker;
 
 async function startWorker() {
-    console.log("Worker process starting...");
-    
-    // Health checks
-    await connectRedis();
-    await verifyBullMQConnection();
-    
-    console.log("Redis connections verified. Starting BullMQ Worker...");
+  console.log("BullMQ Worker starting...");
 
-    worker = new Worker("resume-analysis", async (job) => {
-        try {
-            console.log("Job data comes from worker service: ", JSON.stringify(job.data, null, 2));
-            const { fileID } = job.data;
-            if (!fileID) {
-                throw new Error("Invalid or missing file ID");
-            }
+  worker = new Worker("resume-analysis", async (job) => {
+    const { fileID } = job.data;
 
-            await workerPrisma.resume.update({
-                where: {
-                    id: fileID,
-                },
-                data: {
-                    status: "PROCESSING",
-                },
-            });
+    if (!fileID) {
+      throw new Error("Invalid or missing file ID");
+    }
 
-            await analyzeThisResume(fileID);
+    console.log(`Processing job ${job.id} for file ${fileID}`);
 
-        } catch (error) {
-            console.log("Error in worker service: ", error);
-            await workerPrisma.resume.update({
-                where: { id: job.data.fileID },
-                data: {
-                    status: "FAILED",
-                },
-            });
-            throw error;
-        }
-
-    }, {
-        connection: bullRedisConnection
+    await workerPrisma.resume.update({
+      where: { id: fileID },
+      data: { status: "PROCESSING" },
     });
 
-    worker.on("error", (err) => {
-        console.error("Worker connection/runtime error:", err);
-    });
+    await analyzeThisResume(fileID);
+
+  }, {
+    connection: bullRedisConnection,
+  });
+
+  worker.on("completed", (job) => {
+    console.log(`Job ${job.id} completed successfully`);
+  });
+
+  worker.on("failed", async (job, err) => {
+    console.error(`Job ${job?.id} failed:`, err.message);
+    if (job?.data?.fileID) {
+      await workerPrisma.resume.update({
+        where: { id: job.data.fileID },
+        data: { status: "FAILED" },
+      });
+    }
+  });
+
+  worker.on("error", (err) => {
+    console.error("Worker runtime error:", err.message);
+  });
+
+  console.log("BullMQ Worker started successfully");
 }
 
 startWorker();
