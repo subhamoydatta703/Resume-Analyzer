@@ -29,16 +29,23 @@ export const PendingScanner: React.FC<PendingScannerProps> = ({ resumeId, fileNa
 
   useEffect(() => {
     let index = 0;
+    let timeoutId: number;
     // Add logs one by one with deliberate timing
     const nextLog = () => {
       if (index < TERMINAL_LOGS.length) {
-        setDisplayedLogs((prev) => [...prev, TERMINAL_LOGS[index]]);
+        setDisplayedLogs((prev) => {
+          const newLog = TERMINAL_LOGS[index];
+          return newLog ? [...prev, newLog] : prev;
+        });
         index++;
         const nextDelay = 800 + Math.random() * 800; // organic delay feel
-        setTimeout(nextLog, nextDelay);
+        timeoutId = window.setTimeout(nextLog, nextDelay);
       }
     };
     nextLog();
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, []);
 
   useEffect(() => {
@@ -72,7 +79,7 @@ export const PendingScanner: React.FC<PendingScannerProps> = ({ resumeId, fileNa
 
       {/* Terminal Log Console */}
       <div className="mt-4 h-64 overflow-y-auto px-1 space-y-2 text-[12px] scrollbar-thin select-text">
-        {displayedLogs.map((log, idx) => {
+        {displayedLogs.filter(Boolean).map((log, idx) => {
           let color = "text-stone-400";
           if (log.type === "success") color = "text-emerald-400";
           if (log.type === "accent") color = "text-accent-theme";
