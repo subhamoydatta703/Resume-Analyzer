@@ -7,10 +7,11 @@ let worker: Worker;
 
 async function startWorker() {
   console.log("BullMQ Worker starting...");
-
   worker = new Worker("resume-analysis", async (job) => {
     const { fileID } = job.data;
-
+    console.log(`Processing job ${job.id} for file ${fileID}`);
+  console.log("Worker start worker function in worker service runs...")
+    
     if (!fileID) {
       throw new Error("Invalid or missing file ID");
     }
