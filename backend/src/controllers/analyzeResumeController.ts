@@ -33,14 +33,17 @@ export const analyzeResume = async (req: AuthenticatedRequest, res: Response) =>
             });
         }
 
-        await ResumeAnalysisQueue.add(
+        const job = await ResumeAnalysisQueue.add(
             "resume-analysis",
             {
                 fileID,
             },
-            {
-                jobId: fileID,
-            }
+
+        );
+        console.log(
+            "Added job",
+            job.id,
+            job.name
         );
 
         console.log("Job added successfully:", fileID);
