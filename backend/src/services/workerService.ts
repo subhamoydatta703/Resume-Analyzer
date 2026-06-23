@@ -5,7 +5,7 @@ import { workerPrisma } from "../config/workerDB";
 
 let worker: Worker;
 
-async function startWorker() {
+export async function startWorker() {
   console.log("BullMQ Worker starting...");
   worker = new Worker("resume-analysis", async (job) => {
     const { fileID } = job.data;
@@ -50,4 +50,3 @@ async function startWorker() {
   console.log("BullMQ Worker started successfully");
 }
 
-startWorker();
