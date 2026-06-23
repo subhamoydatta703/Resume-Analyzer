@@ -1,5 +1,5 @@
 
-import { workerPrisma } from "../config/workerDB";
+import { prisma } from "../config/db";
 import { extractPDFText } from "../utils/pdfParser";
 import { analyzeWithGemini } from "./geminiService";
 import { redisClient } from "../config/redis.caching";
@@ -9,7 +9,7 @@ import { getFile } from "./storage/s3StorageService";
 export const analyzeThisResume = async (thisFileID: string) => {
     
     try {
-        const resume = await workerPrisma.resume.findUnique({
+        const resume = await prisma.resume.findUnique({
             where: { id: thisFileID },
             select: { status: true, analysisResult: true, s3Key: true }
         });
@@ -41,7 +41,7 @@ export const analyzeThisResume = async (thisFileID: string) => {
         const parsedAnalysis = JSON.parse(cleanText);
         const validatedAnalysis = AnalysisResultSchema.parse(parsedAnalysis);
 
-        const updatedResume = await workerPrisma.resume.update({
+        const updatedResume = await prisma.resume.update({
             where: {
                 id: thisFileID,
             },
@@ -62,7 +62,7 @@ export const analyzeThisResume = async (thisFileID: string) => {
         console.log("Error in analyzeThisResume function: ", error);
 
         try {
-            const updatedResume = await workerPrisma.resume.update({
+            const updatedResume = await prisma.resume.update({
                 where: { id: thisFileID },
                 data: {
                     status: "FAILED",
