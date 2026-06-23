@@ -1,7 +1,7 @@
 import { Worker } from "bullmq";
 import { bullRedisConnection } from "../config/redis.bullmq";
 import { analyzeThisResume } from "./resumeAnalysisService";
-import { prisma } from "../config/db";
+import { workerPrisma } from "../config/workerDB";
 
 let worker: Worker;
 
@@ -17,7 +17,7 @@ async function startWorker() {
 
     console.log(`Processing job ${job.id} for file ${fileID}`);
 
-    await prisma.resume.update({
+    await workerPrisma.resume.update({
       where: { id: fileID },
       data: { status: "PROCESSING" },
     });
@@ -35,7 +35,7 @@ async function startWorker() {
   worker.on("failed", async (job, err) => {
     console.error(`Job ${job?.id} failed:`, err.message);
     if (job?.data?.fileID) {
-      await prisma.resume.update({
+      await workerPrisma.resume.update({
         where: { id: job.data.fileID },
         data: { status: "FAILED" },
       });
